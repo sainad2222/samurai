@@ -7,3 +7,5 @@ python-dotenv
 cryptography
 snowflake-connector-python
 pandas
+flask
+flask_cors

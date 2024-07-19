@@ -27,16 +27,3 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             "SNOWFLAKE_RSA_KEY_PATH", "/Users/sainath/Desktop/rsa_key.p8"
         )
         CustomSF.__init__(self, key_path=rsa_key_path)
-
-
-session = boto3.Session()
-boto3_bedrock = boto3.client(service_name="bedrock-runtime")
-
-vn = Samurai(client=boto3_bedrock)
-
-
-# print(vn.ask("Hello"))
-vn.connect_to_snowflake_v2()
-print(
-    vn.run_sql("SELECT * FROM EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.ACCOUNTS LIMIT 1;")
-)
