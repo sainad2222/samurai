@@ -1,0 +1,6 @@
+vanna
+boto3
+awscli
+botocore
+langchain
+python-dotenv
