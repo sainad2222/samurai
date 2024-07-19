@@ -41,9 +41,16 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         }
 
         no_system_prompt = []
-        no_system_prompt.append(
-            {"role": "user", "content": [{"text": first_prompt["content"]}]}
-        )
+        system_message = None
+        no_system_prompt = []
+        for prompt_message in first_prompt:
+            role = prompt_message["role"]
+            if role == "system":
+                system_message = prompt_message["content"]
+            else:
+                no_system_prompt.append(
+                    {"role": role, "content": [{"text": prompt_message["content"]}]}
+                )
         for message in previous_messages:
             if message["role"] == "user":
                 no_system_prompt.append(
@@ -55,12 +62,16 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                 )
 
         no_system_prompt.append({"role": "user", "content": [{"text": prompt}]})
+
         converse_api_params = {
             "modelId": self.model,
             "messages": no_system_prompt,
             "inferenceConfig": inference_config,
             "additionalModelRequestFields": additional_model_fields,
         }
+
+        if system_message:
+            converse_api_params["system"] = [{"text": system_message}]
 
         try:
             response = self.client.converse(**converse_api_params)

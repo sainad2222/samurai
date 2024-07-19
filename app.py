@@ -202,12 +202,12 @@ def handle_thread_replies(data):
         for message in messages:
             if message["user"] == BOT_USER_ID and not is_first:
                 chat_messages.append({"role": "assistant", "content": message["text"]})
-                is_first = False
             else:
                 txt = message["text"]
                 if is_first:
                     txt = message["text"].split('"')[1]
                 chat_messages.append({"role": "user", "content": txt})
+            is_first = False
         v2_response = vn.generate_sql_v2(chat_messages, text)
         post_message(channel, v2_response, thread_ts=thread_ts)
         return ("", 200)
