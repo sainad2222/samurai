@@ -61,8 +61,6 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                     {"role": "assistant", "content": [{"text": message["content"]}]}
                 )
 
-        no_system_prompt.append({"role": "user", "content": [{"text": prompt}]})
-
         converse_api_params = {
             "modelId": self.model,
             "messages": no_system_prompt,
