@@ -4,3 +4,6 @@ awscli
 botocore
 langchain
 python-dotenv
+cryptography
+snowflake-connector-python
+pandas
