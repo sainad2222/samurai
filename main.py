@@ -36,6 +36,7 @@ vn = Samurai(client=boto3_bedrock)
 
 
 # print(vn.ask("Hello"))
-vn.connect_to_snowflake
 vn.connect_to_snowflake_v2()
-vn.run_sql()
+print(
+    vn.run_sql("SELECT * FROM EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.ACCOUNTS LIMIT 1;")
+)

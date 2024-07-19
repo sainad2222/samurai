@@ -22,8 +22,8 @@ class CustomSF:
         )
 
         WAREHOUSE = "ANALYST_PROD_WH"
-        DATABASE = "EPIFI_DATALAKE_WEALTH"
-        SCHEMA = "EPIFI_WEALTH"
+        DATABASE = "EPIFI_DATALAKE_ALPACA"
+        SCHEMA = "USS_STOCKS_ALPACA"
         ROLE = "USSTOCK_ALPACA_DNA_ANALYST_L2"
 
         conn = snowflake.connector.connect(
