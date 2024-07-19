@@ -200,12 +200,14 @@ def handle_thread_replies(data):
         print(messages)
         chat_messages = []
         for message in messages:
-            print(messages)
+            print("message", message)
+            print("user", message["user"])
+            print("text", message["text"])
             if message["user"] == BOT_USER_ID:
                 chat_messages.append({"role": "assistant", "content": message["text"]})
             else:
                 chat_messages.append({"role": "user", "content": message["text"]})
-
+        print(chat_messages)
         v2_response = vn.submit_prompt_v2(chat_messages, text)
         post_message(channel, v2_response, thread_ts=thread_ts)
         return ("", 200)
