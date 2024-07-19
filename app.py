@@ -22,12 +22,11 @@ vn = Samurai(client=boto3_bedrock)
 
 vn.connect_to_snowflake_v2()
 
+BOT_USER_ID = "U07DVEJ00NL"
 
-def post_message(sink, text):
-    body = {
-        "channel": sink,
-        "text": text,
-    }
+
+def post_message(sink, text, thread_ts=None):
+    body = {"channel": sink, "text": text, "thread_ts": thread_ts}
 
     try:
         response = requests.post(
@@ -167,8 +166,50 @@ def handle_events():
     if data["type"] == "url_verification":
         return data["challenge"]
 
+    if data["type"] == "event_callback" and data["event"]["user"] != BOT_USER_ID:
+        return handle_thread_replies(data)
+
     # Fallback.
     return ""
+
+
+def handle_thread_replies(data):
+    channel = data["event"]["channel"]
+    thread_ts = data["event"]["thread_ts"]
+    text = data["event"]["text"]
+    try:
+        response = requests.post(
+            "https://slack.com/api/conversations.replies",
+            params={
+                "channel": channel,
+                "ts": thread_ts,
+            },
+            headers={
+                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])
+            },
+        )
+
+        if not response or response.status_code != 200 or not response.json().get("ok"):
+            raise Exception(
+                "Failed to get conversations response status: {}, response data: {}".format(
+                    response.status_code, response.json()
+                )
+            )
+
+        messages = response.json()["messages"]
+        chat_messages = []
+        for message in messages:
+            if message["user"] == BOT_USER_ID:
+                chat_messages.append({"role": "assistant", "content": message["text"]})
+            else:
+                chat_messages.append({"role": "user", "content": message["text"]})
+
+        v2_response = vn.submit_prompt_v2(chat_messages, text)
+        post_message(channel, v2_response, thread_ts=thread_ts)
+
+    except Exception as e:
+        app.logger.error("Error getting conversations")
+        app.logger.error(str(e))
 
 
 @app.route("/slash", methods=["POST"])
