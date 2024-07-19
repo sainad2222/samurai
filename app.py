@@ -206,7 +206,9 @@ def handle_thread_replies(data):
                 txt = message["text"]
                 if is_first:
                     txt = message["text"].split('"')[1]
-                chat_messages.append({"role": "user", "content": txt})
+                    chat_messages.append(txt)
+                else:
+                    chat_messages.append({"role": "user", "content": txt})
             is_first = False
         v2_response = vn.generate_sql_v2(chat_messages, text)
         post_message(channel, v2_response, thread_ts=thread_ts)
