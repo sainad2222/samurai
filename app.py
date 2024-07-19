@@ -197,8 +197,10 @@ def handle_thread_replies(data):
             )
 
         messages = response.json()["messages"]
+        print(messages)
         chat_messages = []
         for message in messages:
+            print(messages)
             if message["user"] == BOT_USER_ID:
                 chat_messages.append({"role": "assistant", "content": message["text"]})
             else:
@@ -211,6 +213,7 @@ def handle_thread_replies(data):
     except Exception as e:
         app.logger.error("Error getting conversations")
         app.logger.error(str(e))
+    return ("", 500)
 
 
 @app.route("/slash", methods=["POST"])
