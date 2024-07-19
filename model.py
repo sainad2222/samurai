@@ -38,7 +38,6 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             "top_p": 1,  # setting top_p value for nucleus sampling
         }
 
-        print("DEBUG before previous messages in model")
         no_system_prompt = []
         for message in previous_messages:
             if message["role"] == "user":
@@ -51,16 +50,14 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                 )
 
         system_message = None
-        for prompt_message in prompt:
-            role = prompt_message["role"]
-            if role == "system":
-                system_message = prompt_message["content"]
-            else:
-                no_system_prompt.append(
-                    {"role": role, "content": [{"text": prompt_message["content"]}]}
-                )
+        role = prompt["role"]
+        if role == "system":
+            system_message = prompt["content"]
+        else:
+            no_system_prompt.append(
+                {"role": role, "content": [{"text": prompt["content"]}]}
+            )
 
-        print("DEBUG before converse api params")
         converse_api_params = {
             "modelId": self.model,
             "messages": no_system_prompt,
@@ -70,13 +67,10 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
 
         if system_message:
             converse_api_params["system"] = [{"text": system_message}]
-        print("DEBUG after system message")
 
         try:
             response = self.client.converse(**converse_api_params)
-            print("DEBUG before text content")
             text_content = response["output"]["message"]["content"][0]["text"]
-            print("DEBUG after text content")
             return text_content
         except ClientError as err:
             message = err.response["Error"]["Message"]
