@@ -132,7 +132,6 @@ def upload_file_v2(sink, file_content, filename, title, initial_comment, ts):
                 "files": [{"id": file_id, "title": title}],
                 "thread_ts": ts,
                 "channel_id": sink,
-                "initial_comment": initial_comment,
             },
         )
 
@@ -151,7 +150,7 @@ def upload_file_v2(sink, file_content, filename, title, initial_comment, ts):
         app.logger.error("Error completing upload")
         app.logger.error(str(e))
 
-    return post_message(sink, initial_comment, ts)
+    return None
 
 
 # deprecated
