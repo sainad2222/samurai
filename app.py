@@ -23,6 +23,7 @@ vn = Samurai(client=boto3_bedrock)
 vn.connect_to_snowflake_v2()
 
 BOT_USER_ID = "U07DVEJ00NL"
+HEADERS = {"Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])}
 
 
 def post_message(sink, text, thread_ts=None):
@@ -32,9 +33,7 @@ def post_message(sink, text, thread_ts=None):
         response = requests.post(
             "https://slack.com/api/chat.postMessage",
             json=body,
-            headers={
-                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])
-            },
+            headers=HEADERS
         )
 
         if not response or response.status_code != 200 or not response.json().get("ok"):
@@ -64,9 +63,7 @@ def reply_message(sink, text, ts, broadcast):
         response = requests.post(
             "https://slack.com/api/chat.postMessage",
             json=body,
-            headers={
-                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])
-            },
+            headers=HEADERS,
         )
 
         if not response or response.status_code != 200 or not response.json().get("ok"):
@@ -89,17 +86,16 @@ def upload_file_v2(sink, file_content, filename, title, initial_comment, ts):
     try:
         upload_url_response = requests.get(
             "https://slack.com/api/files.getUploadURLExternal",
-            headers={
-                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])
-            },
-            params={
-                "filename": filename,
-                "length": len(file_content)
-            }
+            headers=HEADERS,
+            params={"filename": filename, "length": len(file_content)},
         )
 
         upload_url_data = upload_url_response.json()
-        if not upload_url_response or upload_url_response.status_code != 200 or not upload_url_data.get("ok"):
+        if (
+            not upload_url_response
+            or upload_url_response.status_code != 200
+            or not upload_url_data.get("ok")
+        ):
             raise Exception(
                 "Failed to get upload URL, response status: {}, response data: {}".format(
                     upload_url_response.status_code, upload_url_data
@@ -131,56 +127,33 @@ def upload_file_v2(sink, file_content, filename, title, initial_comment, ts):
     # Complete the upload
 
     try:
-        print("DEBUG input parameters", file_id, title, ts, sink)
         complete_upload_response = requests.post(
             "https://slack.com/api/files.completeUploadExternal",
-            headers={
-                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"]),
-            },
-            data={
+            headers=HEADERS,
+            json={
                 "files": [{"id": file_id, "title": title}],
                 "thread_ts": ts,
                 "channel_id": sink,
                 "initial_comment": initial_comment,
-            }
+            },
         )
 
         complete_upload_data = complete_upload_response.json()
-        if not complete_upload_response or complete_upload_response.status_code != 200 or not complete_upload_data.get("ok"):
+        if (
+            not complete_upload_response
+            or complete_upload_response.status_code != 200
+            or not complete_upload_data.get("ok")
+        ):
             raise Exception(
                 "Failed to complete upload, response status: {}, response data: {}".format(
                     complete_upload_response.status_code, complete_upload_data
                 )
             )
 
-        # Post the initial comment
-        response = requests.post(
-            "https://slack.com/api/chat.postMessage",
-            headers={
-                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"]),
-                "Content-Type": "application/json"
-            },
-            data={
-                "channel": sink,
-                "text": initial_comment,
-                "thread_ts": ts,
-                "reply_broadcast": True
-            }
-        )
-
-        if not response or response.status_code != 200 or not response.json().get("ok"):
-            raise Exception(
-                "Failed to post initial comment, response status: {}, response data: {}".format(
-                    response.status_code, response.json()
-                )
-            )
-
-        return response.json()
-    except Exception as e:
-        app.logger.error("Error completing upload to {}".format(sink))
-        app.logger.error(str(e))
+        return post_message(sink, initial_comment, ts)
 
     return None
+
 
 # deprecated
 def upload_file(sink, file_content, filename, title, initial_comment, ts):
