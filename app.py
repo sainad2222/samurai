@@ -6,7 +6,7 @@ import time
 
 from flask_cors import CORS
 from flask import Flask, request
-from model import Samurai
+from model.samurai import Samurai
 
 from dotenv import load_dotenv
 

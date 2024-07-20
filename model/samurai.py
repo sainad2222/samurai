@@ -1,4 +1,3 @@
-from vanna.bedrock.bedrock_converse import boto3
 from vanna.chromadb import ChromaDB_VectorStore
 from vanna.bedrock import Bedrock_Converse
 from botocore.exceptions import ClientError
@@ -6,13 +5,8 @@ from customsf import CustomSF
 from dotenv import load_dotenv
 
 import os
-import sys
 
 load_dotenv()
-
-
-module_path = ".."
-sys.path.append(os.path.abspath(module_path))
 
 
 class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
