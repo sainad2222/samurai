@@ -15,7 +15,8 @@ boto3_bedrock = boto3.client(service_name="bedrock-runtime")
 
 vn = Samurai(client=boto3_bedrock)
 
-vn.train(ddl="""
+vn.train(
+    ddl="""
 --EPIFI_DATALAKE_TECH.VENDORMAPPING.DP_VENDOR_MAPPINGS
 
 create or replace TABLE EPIFI_DATALAKE_TECH.VENDORMAPPING.DP_VENDOR_MAPPINGS (
@@ -33,9 +34,11 @@ COMMENT ON TABLE EPIFI_DATALAKE_TECH.VENDORMAPPING.DP_VENDOR_MAPPINGS IS '{ "com
 COMMENT ON COLUMN EPIFI_DATALAKE_TECH.VENDORMAPPING.DP_VENDOR_MAPPINGS.FIREHOSE_ID IS '{ "comment": "It is the identifier for a user across the organisation. This is a data point present across most tables in the organisation where there is a user action. Should be used as a joining key, since it represents the user identifier.","examples": ["35479187-1a5a-4dd2-80fd-695c2eb3f657","20188659-94f0-46b2-bfb8-a3bdb3605f0d","7b62cbda-a73f-4768-aa42-deced1ceaf5e"]}';
 
 COMMENT ON COLUMN EPIFI_DATALAKE_TECH.VENDORMAPPING.DP_VENDOR_MAPPINGS.MOENGAGE_ID IS '{ "comment": "It represents a user for the communication tool Moengage. Typically, this is used for sending any communications related to the user.","examples": ["0f8f515b-9cee-4f71-af1c-e213dcc33e15","8204b606-213d-4749-84db-9f01e0487556","cba1e02d-a65c-41d2-9005-088b50a57cfa","805d5197-a7f3-43c8-b4bd-68d837f81cc3"]}';
-""")
+"""
+)
 
-vn.train(ddl="""
+vn.train(
+    ddl="""
 create or replace TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.STOCKS (
 	ID VARCHAR(16777216),
 	SYMBOL VARCHAR(16777216),
@@ -86,10 +89,12 @@ COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.STOCKS.COMPANY_INFO IS '
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.STOCKS.ESTIMATES_INFO IS '{"comment":"This column stores analyst estimates and recommendations for the stock in JSON format.  The data includes target price estimates (high, low, mean, median) and analyst recommendations (buy, sell, hold) with associated dates. To access specific data points, the JSON object needs to be unmarshalled and parsed.","examples":[{"value":"{\\"analystEstimates\\": {\\"targetPriceEstimates\\": {\\"periodicTargetPriceEstimates\\": [{\\"low\\": 23.95, \\"high\\": 23.95, \\"mean\\": 23.95, \\"median\\": 23.95, \\"numOfEstimates\\": 1}]}}, \\"analystRecommendations\\": {\\"hold\\": 1, \\"asOfDate\\": {\\"day\\": 10, \\"year\\": 2023, \\"month\\": 11}}}","explanation":"Example showing a hold recommendation and target price estimates for a stock."}]}';
 
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.STOCKS.FINANCIAL_INFO IS '{"comment":"This column contains comprehensive financial information about the stock in JSON format. It includes yearly and quarterly data for: balance sheets, cash flow statements, income statements, growth ratios, valuation ratios, profitability ratios, and financial health ratios. Each data point is associated with a specific reporting date and period ending date. To access specific financial data, the JSON object needs to be unmarshalled and parsed.","examples":[{"value":"{\\"yearlyBalanceSheets\\":[{\\"reportDate\\":{\\"day\\":31, \\"year\\":2023, \\"month\\":3}, \\"totalAssets\\":{\\"units\\":\\"896101000\\", \\"currencyCode\\":\\"USD\\"}, ...}]}", "explanation":"Shortened example showing a fragment of yearly balance sheet data."}]}';
-""")
+"""
+)
 
 
-vn.train(ddl="""
+vn.train(
+    ddl="""
 create or replace TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTIONS (
 	ID VARCHAR(16777216),
 	DISPLAY_DETAILS VARCHAR(16777216),
@@ -103,10 +108,12 @@ COMMENT ON TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTIONS IS 'A collect
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTIONS.ID IS '{"comment":"This is the primary key of the COLLECTIONS table, representing a unique identifier for a collection of US Stocks. Referred to as COLLECTION_ID in other parts of the database, it can be used as a joining key.","examples":"}';
 
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTIONS.DISPLAY_DETAILS IS '{"comment":"This column contains a JSON object with all the display details of a collection. It includes elements like title, icon URL, subtitle, description, and discovery options. To access individual display details, the JSON object will need to be unmarshalled and parsed.","examples":[{"value":"{\\"title\\": \\"Tourism Titans\\", \\"iconUrl\\": \\"https://epifi-icons.s3.ap-south-1.amazonaws.com/flight.png\\", \\"subtitle\\": \\"Leading travel and tourism stocks\\", \\"description\\": \\"Industry giants that dominate the travel sector, from airlines and hotels to online travel agencies\\", \\"discoveryOptions\\": {\\"mainCollections\\": {\\"weight\\": 1, \\"visibility\\": \\"COLLECTION_VISIBILITY_VISIBLE\\"}}}","explanation":"Example JSON data for a collection called \\"Tourism Titans\\"."}]}';
-""")
+"""
+)
 
-vn.train(ddl="""
-"create or replace TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTION_STOCK_MAPPINGS (
+vn.train(
+    ddl="""
+create or replace TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTION_STOCK_MAPPINGS (
 	COLLECTION_ID VARCHAR(16777216),
 	STOCK_ID VARCHAR(16777216),
 	WEIGHT NUMBER(38,0),
@@ -120,10 +127,12 @@ COMMENT ON TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTION_STOCK_MAPPINGS
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTION_STOCK_MAPPINGS.COLLECTION_ID IS '{"comment":"This represents the unique identifier of a collection and is a joining key that maps to the ID field in the COLLECTIONS table.","examples":""}';
 
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTION_STOCK_MAPPINGS.STOCK_ID IS '{"comment":"This is the internal identifier of a US Stock in the organization. It maps to the ID column in the STOCKS table and can be used for joining.","examples":""}';"
-""")
+"""
+)
 
-vn.train(ddl="""
-"create or replace TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLISTS (
+vn.train(
+    ddl="""
+create or replace TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLISTS (
 	ID VARCHAR(16777216),
 	NAME VARCHAR(16777216),
 	CREATED_AT TIMESTAMP_NTZ(9),
@@ -145,10 +154,12 @@ COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLISTS.UPDATED_AT IS
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLISTS.DELETED_AT IS '{"comment":"This indicates the timestamp when the watchlist was deleted (if applicable).","examples":""}';
 
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLISTS.ACTOR_ID IS '{"comment":"This is the identifier for the user who created the watchlist. This is a data point present across most tables in the organization where there is a user action. Should be used as a joining key since it represents the user identifier.","examples":["35479187-1a5a-4dd2-80fd-695c2eb3f657","20188659-94f0-46b2-bfb8-a3bdb3605f0d","7b62cbda-a73f-4768-aa42-deced1ceaf5e"]}'; "
-""")
+"""
+)
 
-vn.train(ddl="""
-"create or replace TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLIST_STOCK_MAPPINGS (
+vn.train(
+    ddl="""
+create or replace TABLE EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLIST_STOCK_MAPPINGS (
 	WATCHLIST_ID VARCHAR(16777216),
 	STOCK_ID VARCHAR(16777216),
 	CREATED_AT TIMESTAMP_NTZ(9),
@@ -167,10 +178,12 @@ COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLIST_STOCK_MAPPINGS
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLIST_STOCK_MAPPINGS.UPDATED_AT IS '{"comment":"This indicates the timestamp when the mapping between the stock and watchlist was last updated.","examples":""}';
 
 COMMENT ON COLUMN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.WATCHLIST_STOCK_MAPPINGS.DELETED_AT_UNIX IS '{"comment":"This indicates the Unix timestamp when the stock was removed from the watchlist (if applicable).","examples":""}';"
-""")
+"""
+)
 
-vn.train(ddl=""" 
-"create or replace TRANSIENT TABLE EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY (
+vn.train(
+    ddl=""" 
+create or replace TRANSIENT TABLE EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY (
 	TABLE_REFRESH_TIME TIMESTAMP_LTZ(9),
 	ACTOR_ID VARCHAR(16777216),
 	CREATED_DATE_IST DATE,
@@ -318,11 +331,13 @@ COMMENT ON COLUMN EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY.DISTINCT_STOCKS_
 COMMENT ON COLUMN EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY.NUM_WALLET_WITHDRAW_FUND_SUCCESS_TXNS IS '{"comment":"This represents the number of successful withdraw funds transactions completed by the user on this particular date. We typically use successful txn for querying and data analysis. The value will be null if the user did not attempt any withdraw funds transactions.","examples":["1", "2", "null"]}';
 
 COMMENT ON COLUMN EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY.WITHDRAW_FUND_FAILURE_FLAG IS '{"comment":"This is a flag indicating whether the user had at least one failed withdraw funds transaction on this particular date.","examples":[{"value":"1","explanation":"The user had at least one failed withdraw funds transaction"},{"value":"0","explanation":"The user did not have any failed withdraw funds transactions"},{"value":"null", "explanation":"The user did not attempt any withdraw funds transactions"}]}';"
-""")
+"""
+)
 
 
-vn.train(ddl="""
-"create or replace TRANSIENT TABLE EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS (
+vn.train(
+    ddl="""
+create or replace TRANSIENT TABLE EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS (
 	TABLE_REFRESH_TIME TIMESTAMP_LTZ(9),
 	WALLET_TRANSACTION_ID VARCHAR(16777216),
 	ACTOR_ID VARCHAR(16777216),
@@ -458,10 +473,12 @@ COMMENT ON COLUMN EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS.WALLET_TXN_TI
 COMMENT ON COLUMN EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS.WALLET_TXN_TIME_TAKEN_HOUR IS '{"comment":"This field measures the total time taken for the wallet transaction to complete, expressed in hours. It represents the duration from order creation to successful completion (or failure).","examples":""}';
 
 COMMENT ON COLUMN EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS.WALLET_TXN_TIME_TAKEN_DAYS IS '{"comment":"This field measures the total time taken for the wallet transaction to complete, expressed in days. It represents the duration from order creation to successful completion (or failure).","examples":""}';"
-""")
+"""
+)
 
-vn.train(ddl="""
-"create or replace TABLE EPIFI_DATALAKE_TECH.EVENTS.USS_INVEST_CLIENT_EVENTS (
+vn.train(
+    ddl="""
+create or replace TABLE EPIFI_DATALAKE_TECH.EVENTS.USS_INVEST_CLIENT_EVENTS (
 	CHANNEL VARCHAR(16777216),
 	EVENT VARCHAR(16777216),
 	INTEGRATIONS VARCHAR(16777216),
@@ -491,4 +508,6 @@ COMMENT ON COLUMN EPIFI_DATALAKE_TECH.EVENTS.USS_INVEST_CLIENT_EVENTS.EVENT IS  
 COMMENT ON COLUMN EPIFI_DATALAKE_TECH.EVENTS.USS_INVEST_CLIENT_EVENTS.TIMESTAMP IS  '{"comment":"This field represents the exact time at which the time was fired","examples":"2023-05-24 08:57:31.696"}';
 COMMENT ON COLUMN EPIFI_DATALAKE_TECH.EVENTS.USS_INVEST_CLIENT_EVENTS.ACTOR_ID IS  '{ "comment": "It is the identifier for a user across the organisation. This is a data point present across most tables in the organisation where there is a user action. Should be used as a joining key, since it represents the user identifier.","examples": ["35479187-1a5a-4dd2-80fd-695c2eb3f657","20188659-94f0-46b2-bfb8-a3bdb3605f0d","7b62cbda-a73f-4768-aa42-deced1ceaf5e"]}';
 COMMENT ON COLUMN EPIFI_DATALAKE_TECH.EVENTS.USS_INVEST_CLIENT_EVENTS.PROPERTIES IS  '{ "comment": "It has the properties for the events in JSON form. The JSON will need to be unmarshalled to check all the properties. Refer to document related to check exact event and property required","examples": "{"entry_point":"HOME_SMART_DEPOSIT_TAB","entry_point_v2":"HOME_SMART_DEPOSIT_TAB","event_id":"2d89d837-6224-42c1-bac4-8bb1e52e6af9","funnel_start":","opted_in":"true","screen_name":"default","session_id":"605b15d6-1628-415a-9fdc-ce25ad523bb3","timestamp":"1684918651696"}"}';
-""")
+"""
+)
+
