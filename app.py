@@ -22,6 +22,9 @@ vn = Samurai(client=boto3_bedrock)
 
 vn.connect_to_snowflake_v2()
 
+# events map to dedupe events
+events_map = {}
+
 BOT_USER_ID = os.environ["BOT_USER_ID"]
 HEADERS = {"Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])}
 
@@ -227,16 +230,19 @@ def index():
 @app.route("/event", methods=["POST"])
 def handle_events():
     data = request.get_json()
+    event_id = data["event_id"]
+    if event_id in events_map:
+        return ""
+    events_map[event_id] = True
     # Verify the event route.
     if data["type"] == "url_verification":
         return data["challenge"]
 
-    if (
-        data["type"] == "event_callback"
-        and "event" in data
-        and data["event"]["user"] != BOT_USER_ID
-    ):
-        return handle_thread_replies(data)
+    if data["type"] == "event_callback" and "event" in data:
+        if data["event"]["user"] != BOT_USER_ID:
+            return handle_thread_replies(data)
+        else:
+            return ""
     else:
         print(f"unhandled data event: {data}")
 
