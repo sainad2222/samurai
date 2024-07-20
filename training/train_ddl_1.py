@@ -5,6 +5,10 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from model.samurai import Samurai
 import boto3
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 session = boto3.Session()
 boto3_bedrock = boto3.client(service_name="bedrock-runtime")
