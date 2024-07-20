@@ -80,6 +80,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                 no_system_prompt.append(
                     {"role": "assistant", "content": [{"text": message["content"]}]}
                 )
+        no_system_prompt.append({"role": "user", "content": [{"text": prompt}]})
         no_system_prompt = self.merge_consecutive_messages(no_system_prompt)
         converse_api_params = {
             "modelId": self.model,
@@ -179,7 +180,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                     )
                     self.log(title="Final SQL Prompt", message=first_prompt)
                     llm_response = self.submit_prompt_v2(
-                        previous_messages, prompt, **kwargs
+                        first_prompt, previous_messages, prompt, **kwargs
                     )
                     self.log(title="LLM Response", message=llm_response)
                 except Exception as e:
@@ -227,7 +228,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             elif len(numeric_cols) == 1 and len(categorical_cols) >= 1:
                 # Use a bar plot if there's one numeric and one categorical column
                 fig = px.bar(df, x=categorical_cols[0], y=numeric_cols[0])
-                fig.update_traces(marker_color='#00b899')
+                fig.update_traces(marker_color="#00b899")
                 for i, row in df.iterrows():
                     fig.add_annotation(
                         x=row[categorical_cols[0]],
@@ -236,8 +237,8 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                         showarrow=True,
                         arrowhead=2,
                         ax=0,
-                        ay=-30
-            )
+                        ay=-30,
+                    )
             elif (
                 len(categorical_cols) >= 1
                 and df[categorical_cols[0]].nunique() < 10

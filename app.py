@@ -208,7 +208,22 @@ def sql_reply(question, sink, ts, previous_messages=None):
 
     reply_message(sink, slack_sql, ts, broadcast=False)
 
-    df = vn.run_sql(sql)
+    try:
+        df = vn.run_sql(sql)
+    except Exception as e:
+        if not previous_messages:
+            previous_messages = []
+        previous_messages.append({"role": "user", "content": question})
+        previous_messages.append({"role": "assistant", "content": slack_sql})
+        sql = vn.generate_sql_v2(
+            previous_messages,
+            f"Got the following error {e}, can you recheck syntax?",
+            allow_llm_to_see_data=True,
+        )
+        slack_sql = "```\n" + sql + "\n```"
+
+        reply_message(sink, slack_sql, ts, broadcast=False)
+        df = vn.run_sql(sql)
 
     slack_table = "```\n" + df.head(10).to_markdown(index=False) + "\n...```"
 
@@ -274,7 +289,7 @@ def handle_thread_replies(data):
         messages = response.json()["messages"]
         chat_messages = []
         is_first = True
-        for message in messages:
+        for message in messages[:-1]:
             if "text" not in message:
                 continue
             if message["user"] == BOT_USER_ID and not is_first:

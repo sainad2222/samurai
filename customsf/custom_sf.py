@@ -47,10 +47,13 @@ class CustomSF:
             if WAREHOUSE is not None:
                 cs.execute(f"USE WAREHOUSE {WAREHOUSE}")
             cs.execute(f"USE DATABASE {DATABASE}")
+            try:
 
-            cur = cs.execute(sql)
+                cur = cs.execute(sql)
 
-            results = cur.fetchall()
+                results = cur.fetchall()
+            except Exception as e:
+                raise e
 
             # Create a pandas dataframe from the results
             df = pd.DataFrame(results, columns=[desc[0] for desc in cur.description])
