@@ -1,6 +1,8 @@
 from vanna.chromadb import ChromaDB_VectorStore
 from vanna.bedrock import Bedrock_Converse
 from botocore.exceptions import ClientError
+import json
+import time
 from customsf import CustomSF
 from dotenv import load_dotenv
 import plotly
@@ -95,6 +97,13 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         try:
             response = self.client.converse(**converse_api_params)
             text_content = response["output"]["message"]["content"][0]["text"]
+            filename = time.strftime("%Y%m%d-%H%M%S")
+            f = open(f"logs/{filename}.json", "w")
+            f.write(json.dumps({
+                "messages": converse_api_params["messages"],
+                "response": text_content,
+            }))
+            f.close()
             return text_content
         except ClientError as err:
             message = err.response["Error"]["Message"]
@@ -148,12 +157,12 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             doc_list=doc_list,
             **kwargs,
         )
-        self.log(title="SQL Prompt", message=first_prompt)
+        # self.log(title="SQL Prompt", message=first_prompt)
         previous_messages = previous_messages[1:]
         llm_response = self.submit_prompt_v2(
             first_prompt, previous_messages, question, **kwargs
         )
-        self.log(title="LLM Response", message=llm_response)
+        # self.log(title="LLM Response", message=llm_response)
 
         if "intermediate_sql" in llm_response:
             if not allow_llm_to_see_data:
@@ -178,11 +187,11 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                         ],
                         **kwargs,
                     )
-                    self.log(title="Final SQL Prompt", message=first_prompt)
+                    # self.log(title="Final SQL Prompt", message=first_prompt)
                     llm_response = self.submit_prompt_v2(
                         first_prompt, previous_messages, prompt, **kwargs
                     )
-                    self.log(title="LLM Response", message=llm_response)
+                    # self.log(title="LLM Response", message=llm_response)
                 except Exception as e:
                     return f"Error running intermediate SQL: {e}"
 
