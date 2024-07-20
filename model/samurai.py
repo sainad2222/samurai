@@ -27,6 +27,24 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         )
         CustomSF.__init__(self, key_path=rsa_key_path)
 
+    def merge_consecutive_messages(self, messages):
+        merged_messages = []
+        for message in messages:
+            if merged_messages and merged_messages[-1]["role"] == message["role"]:
+                merged_messages[-1]["content"].append(
+                    {
+                        "text": " ".join(
+                            [
+                                merged_messages[-1]["content"][-1]["text"],
+                                message["content"][0]["text"],
+                            ]
+                        )
+                    }
+                )
+            else:
+                merged_messages.append(message)
+        return merged_messages
+
     def submit_prompt_v2(
         self, first_prompt, previous_messages, prompt, **kwargs
     ) -> str:
@@ -58,7 +76,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                 no_system_prompt.append(
                     {"role": "assistant", "content": [{"text": message["content"]}]}
                 )
-
+        no_system_prompt = self.merge_consecutive_messages(no_system_prompt)
         converse_api_params = {
             "modelId": self.model,
             "messages": no_system_prompt,
