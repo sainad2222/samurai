@@ -31,9 +31,7 @@ def post_message(sink, text, thread_ts=None):
 
     try:
         response = requests.post(
-            "https://slack.com/api/chat.postMessage",
-            json=body,
-            headers=HEADERS
+            "https://slack.com/api/chat.postMessage", json=body, headers=HEADERS
         )
 
         if not response or response.status_code != 200 or not response.json().get("ok"):
@@ -149,10 +147,11 @@ def upload_file_v2(sink, file_content, filename, title, initial_comment, ts):
                     complete_upload_response.status_code, complete_upload_data
                 )
             )
+    except Exception as e:
+        app.logger.error("Error completing upload")
+        app.logger.error(str(e))
 
-        return post_message(sink, initial_comment, ts)
-
-    return None
+    return post_message(sink, initial_comment, ts)
 
 
 # deprecated
