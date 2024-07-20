@@ -84,6 +84,105 @@ def reply_message(sink, text, ts, broadcast):
     return None
 
 
+def upload_file_v2(sink, file_content, filename, title, initial_comment, ts):
+    # Get upload URL
+    try:
+        upload_url_response = requests.get(
+            "https://slack.com/api/files.getUploadURLExternal",
+            headers={
+                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])
+            },
+            params={
+                "filename": filename,
+                "length": len(file_content)
+            }
+        )
+
+        upload_url_data = upload_url_response.json()
+        if not upload_url_response or upload_url_response.status_code != 200 or not upload_url_data.get("ok"):
+            raise Exception(
+                "Failed to get upload URL, response status: {}, response data: {}".format(
+                    upload_url_response.status_code, upload_url_data
+                )
+            )
+
+        upload_url = upload_url_data["upload_url"]
+        file_id = upload_url_data["file_id"]
+    except Exception as e:
+        app.logger.error("Error getting upload URL")
+        app.logger.error(str(e))
+        return None
+
+    # Upload file to obtained URL
+    try:
+        upload_response = requests.put(upload_url, data=file_content)
+
+        if not upload_response or upload_response.status_code != 200:
+            raise Exception(
+                "Failed to upload file, response status: {}, response data: {}".format(
+                    upload_response.status_code, upload_response.text
+                )
+            )
+    except Exception as e:
+        app.logger.error("Error uploading file")
+        app.logger.error(str(e))
+        return None
+
+    # Complete the upload
+
+    try:
+        print("DEBUG input parameters", file_id, title, ts, sink)
+        complete_upload_response = requests.post(
+            "https://slack.com/api/files.completeUploadExternal",
+            headers={
+                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"]),
+            },
+            data={
+                "files": [{"id": file_id, "title": title}],
+                "thread_ts": ts,
+                "channel_id": sink,
+                "initial_comment": initial_comment,
+            }
+        )
+
+        complete_upload_data = complete_upload_response.json()
+        if not complete_upload_response or complete_upload_response.status_code != 200 or not complete_upload_data.get("ok"):
+            raise Exception(
+                "Failed to complete upload, response status: {}, response data: {}".format(
+                    complete_upload_response.status_code, complete_upload_data
+                )
+            )
+
+        # Post the initial comment
+        response = requests.post(
+            "https://slack.com/api/chat.postMessage",
+            headers={
+                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"]),
+                "Content-Type": "application/json"
+            },
+            data={
+                "channel": sink,
+                "text": initial_comment,
+                "thread_ts": ts,
+                "reply_broadcast": True
+            }
+        )
+
+        if not response or response.status_code != 200 or not response.json().get("ok"):
+            raise Exception(
+                "Failed to post initial comment, response status: {}, response data: {}".format(
+                    response.status_code, response.json()
+                )
+            )
+
+        return response.json()
+    except Exception as e:
+        app.logger.error("Error completing upload to {}".format(sink))
+        app.logger.error(str(e))
+
+    return None
+
+# deprecated
 def upload_file(sink, file_content, filename, title, initial_comment, ts):
     body = {
         "channels": sink,
@@ -143,7 +242,7 @@ def sql_reply(question, sink, ts):
 
     img = fig.to_image(format="png", width=800, height=600, scale=2)
 
-    upload_file(sink, img, "plot.png", "Plot", question, ts)
+    upload_file_v2(sink, img, "plot.png", "Plot", question, ts)
 
 
 @app.route("/")
