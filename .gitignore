@@ -162,3 +162,4 @@ cython_debug/
 #.idea/
 *.sqlite
 *.sqlite3
+[0-9a-zA-Z]*-[0-9a-zA-Z]*-[0-9a-zA-Z]*-[0-9a-zA-Z]*-[0-9a-zA-Z]*
