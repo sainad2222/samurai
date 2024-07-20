@@ -202,7 +202,9 @@ def handle_thread_replies(data):
                 else:
                     chat_messages.append({"role": "user", "content": txt})
             is_first = False
-        v2_response = vn.generate_sql_v2(chat_messages, text)
+        v2_response = vn.generate_sql_v2(
+            chat_messages, text, allow_llm_to_see_data=True
+        )
         post_message(channel, v2_response, thread_ts=thread_ts)
         return ("", 200)
 
