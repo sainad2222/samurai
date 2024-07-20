@@ -227,6 +227,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             elif len(numeric_cols) == 1 and len(categorical_cols) >= 1:
                 # Use a bar plot if there's one numeric and one categorical column
                 fig = px.bar(df, x=categorical_cols[0], y=numeric_cols[0])
+                fig.update_traces(marker_color='#00b899')
             elif (
                 len(categorical_cols) >= 1
                 and df[categorical_cols[0]].nunique() < 10
