@@ -9,6 +9,6 @@ prompts = """===RESPONSE GUIDELINES
                     "8. As you are serving your response, follow the below steps 
                     Step 1 : List the tables being used in the query and what it contains
                     Step 2 : Describe the metric definitions being used in the query
-                    Step 3: Print the SQL
+                    Step 3: Print the SQL query. Don't print any nonSQL text in the output. Recheck the query to ensure there is no syntax errors
                     Step 4 : Print the data\n"
                     """
