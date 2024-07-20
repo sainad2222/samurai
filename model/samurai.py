@@ -3,6 +3,10 @@ from vanna.bedrock import Bedrock_Converse
 from botocore.exceptions import ClientError
 from customsf import CustomSF
 from dotenv import load_dotenv
+import plotly
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
 
 import os
 
@@ -160,3 +164,63 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                     return f"Error running intermediate SQL: {e}"
 
         return self.extract_sql(llm_response)
+
+    def get_plotly_figure_v2(
+        self, plotly_code: str, df: pd.DataFrame, dark_mode: bool = True
+    ) -> plotly.graph_objs.Figure:
+        """
+        **Example:**
+        ```python
+        fig = vn.get_plotly_figure(
+            plotly_code="fig = px.bar(df, x='name', y='salary')",
+            df=df
+        )
+        fig.show()
+        ```
+        Get a Plotly figure from a dataframe and Plotly code.
+
+        Args:
+            df (pd.DataFrame): The dataframe to use.
+            plotly_code (str): The Plotly code to use.
+
+        Returns:
+            plotly.graph_objs.Figure: The Plotly figure.
+        """
+        ldict = {"df": df, "px": px, "go": go}
+        try:
+            exec(plotly_code, globals(), ldict)
+
+            fig = ldict.get("fig", None)
+        except Exception as e:
+            # Inspect data types
+            numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+            categorical_cols = df.select_dtypes(
+                include=["object", "category"]
+            ).columns.tolist()
+
+            # Decision-making for plot type
+            if len(numeric_cols) >= 2 and len(categorical_cols) == 0:
+                # Use the first two numeric columns for a scatter plot
+                fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1])
+            elif len(numeric_cols) == 1 and len(categorical_cols) >= 1:
+                # Use a bar plot if there's one numeric and one categorical column
+                fig = px.bar(df, x=categorical_cols[0], y=numeric_cols[0])
+            elif len(categorical_cols) >= 1 and df[categorical_cols[0]].nunique() < 10 and len(numeric_cols) == 0:
+                # Use a pie chart for categorical data with fewer unique values
+                fig = px.pie(df, names=categorical_cols[0])
+            elif len(categorical_cols) == 1 and len(numeric_cols) >= 1:
+                # Use a bar plot for multiple numeric columns with one categorical column
+                fig = px.bar(df,x=categorical_cols[0],y=numeric_cols)
+                fig.update_layout(barmode='relative', xaxis={'categoryorder':'category ascending'})
+            else:
+                # Default to a simple line plot if above conditions are not met
+                fig = px.line(df)
+
+
+        if fig is None:
+            return None
+
+        if dark_mode:
+            fig.update_layout(template="plotly_dark")
+
+        return fig

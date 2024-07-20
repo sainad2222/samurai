@@ -9,6 +9,7 @@ from flask import Flask, request
 from model.samurai import Samurai
 
 from dotenv import load_dotenv
+from plotly_figure import get_plotly_figure_v2
 
 load_dotenv()
 
@@ -139,7 +140,7 @@ def sql_reply(question, sink, ts):
     reply_message(sink, slack_table, ts, broadcast=False)
 
     plotly_code = vn.generate_plotly_code(question=question, sql=sql, df=df)
-    fig = vn.get_plotly_figure(plotly_code=plotly_code, df=df)
+    fig = vn.get_plotly_figure_v2(plotly_code=plotly_code, df=df)
 
     img = fig.to_image(format="png", width=800, height=600, scale=2)
 
