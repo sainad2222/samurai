@@ -7,6 +7,7 @@ import plotly
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+from vanai_prompts import prompts
 
 import os
 
@@ -19,7 +20,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         Bedrock_Converse.__init__(
             self,
             client=client,
-            config={"modelId": "anthropic.claude-3-sonnet-20240229-v1:0"},
+            config={"modelId": "anthropic.claude-3-sonnet-20240229-v1:0","initial_prompt":prompts},
         )
         # Change the path
         rsa_key_path = os.environ.get(
