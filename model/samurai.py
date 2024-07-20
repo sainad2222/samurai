@@ -97,13 +97,23 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         try:
             response = self.client.converse(**converse_api_params)
             text_content = response["output"]["message"]["content"][0]["text"]
-            filename = time.strftime("%Y%m%d-%H%M%S")
-            f = open(f"logs/{filename}.json", "w")
-            f.write(json.dumps({
-                "messages": converse_api_params["messages"],
-                "response": text_content,
-            }))
-            f.close()
+            cur_time = time.strftime("%Y%m%d-%H%M%S")
+            filename = f"logs/{cur_time}.json"
+
+            def safe_open_w(path):
+                """Open "path" for writing, creating any parent directories as needed."""
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                return open(path, "w")
+
+            with safe_open_w(filename) as f:
+                f.write(
+                    json.dumps(
+                        {
+                            "messages": converse_api_params["messages"],
+                            "response": text_content,
+                        }
+                    )
+                )
             return text_content
         except ClientError as err:
             message = err.response["Error"]["Message"]
