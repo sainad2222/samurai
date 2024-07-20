@@ -19,6 +19,7 @@ session = boto3.Session()
 boto3_bedrock = boto3.client(service_name="bedrock-runtime")
 
 vn = Samurai(client=boto3_bedrock)
+vn.max_tokens = 20000
 
 vn.connect_to_snowflake_v2()
 
