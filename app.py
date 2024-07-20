@@ -169,9 +169,7 @@ def upload_file(sink, file_content, filename, title, initial_comment, ts):
         response = requests.post(
             "https://slack.com/api/files.upload",
             data=body,
-            headers={
-                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])
-            },
+            headers=HEADERS,
             files={"file": file_content},
         )
 
@@ -195,8 +193,13 @@ def reply_message_with_delay(delay, sink, text, ts, broadcast):
     reply_message(sink, text, ts, broadcast)
 
 
-def sql_reply(question, sink, ts):
-    sql = vn.generate_sql(question, allow_llm_to_see_data=True)
+def sql_reply(question, sink, ts, previous_messages=None):
+    if previous_messages:
+        sql = vn.generate_sql_v2(
+            previous_messages, question, allow_llm_to_see_data=True
+        )
+    else:
+        sql = vn.generate_sql(question, allow_llm_to_see_data=True)
 
     slack_sql = "```\n" + sql + "\n```"
 
@@ -228,8 +231,14 @@ def handle_events():
     if data["type"] == "url_verification":
         return data["challenge"]
 
-    if data["type"] == "event_callback" and data["event"]["user"] != BOT_USER_ID:
+    if (
+        data["type"] == "event_callback"
+        and "event" in data
+        and data["event"]["user"] != BOT_USER_ID
+    ):
         return handle_thread_replies(data)
+    else:
+        print(f"unhandled data event: {data}")
 
     # Fallback.
     return ""
@@ -246,9 +255,7 @@ def handle_thread_replies(data):
                 "channel": channel,
                 "ts": thread_ts,
             },
-            headers={
-                "Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])
-            },
+            headers=HEADERS,
         )
 
         if not response or response.status_code != 200 or not response.json().get("ok"):
@@ -262,6 +269,8 @@ def handle_thread_replies(data):
         chat_messages = []
         is_first = True
         for message in messages:
+            if "text" not in message:
+                continue
             if message["user"] == BOT_USER_ID and not is_first:
                 chat_messages.append({"role": "assistant", "content": message["text"]})
             else:
