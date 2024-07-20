@@ -126,14 +126,6 @@ def reply_message_with_delay(delay, sink, text, ts, broadcast):
 
 
 def sql_reply(question, sink, ts):
-    # Specify the file path
-    file_path = "training/txn_ddl.txt"
-
-    # Read the entire content of the file and store it in a variable
-    with open(file_path, "r") as file:
-        file_content = file.read()
-
-    vn.add_ddl(file_content)
     sql = vn.generate_sql(question)
 
     slack_sql = "```\n" + sql + "\n```"
