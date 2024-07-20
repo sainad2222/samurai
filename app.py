@@ -109,7 +109,7 @@ def upload_file_v2(sink, file_content, filename, title, initial_comment, ts):
 
     # Upload file to obtained URL
     try:
-        upload_response = requests.put(upload_url, data=file_content)
+        upload_response = requests.post(upload_url, headers=HEADERS, data=file_content)
 
         if not upload_response or upload_response.status_code != 200:
             raise Exception(
