@@ -126,7 +126,7 @@ def reply_message_with_delay(delay, sink, text, ts, broadcast):
 
 
 def sql_reply(question, sink, ts):
-    sql = vn.generate_sql(question)
+    sql = vn.generate_sql(question, allow_llm_to_see_data=True)
 
     slack_sql = "```\n" + sql + "\n```"
 
