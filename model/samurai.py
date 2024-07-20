@@ -228,6 +228,16 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                 # Use a bar plot if there's one numeric and one categorical column
                 fig = px.bar(df, x=categorical_cols[0], y=numeric_cols[0])
                 fig.update_traces(marker_color='#00b899')
+                for i, row in df.iterrows():
+                    fig.add_annotation(
+                        x=row[categorical_cols[0]],
+                        y=row[numeric_cols[0]],
+                        text=f"{row[numeric_cols[0]]}",
+                        showarrow=True,
+                        arrowhead=2,
+                        ax=0,
+                        ay=-30
+            )
             elif (
                 len(categorical_cols) >= 1
                 and df[categorical_cols[0]].nunique() < 10
@@ -249,6 +259,6 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             return None
 
         if dark_mode:
-            fig.update_layout(template="plotly_dark")
+            fig.update_layout(template="plotly_white")
 
         return fig
