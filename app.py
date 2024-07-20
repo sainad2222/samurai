@@ -281,10 +281,7 @@ def handle_thread_replies(data):
                 else:
                     chat_messages.append({"role": "user", "content": txt})
             is_first = False
-        v2_response = vn.generate_sql_v2(
-            chat_messages, text, allow_llm_to_see_data=True
-        )
-        post_message(channel, v2_response, thread_ts=thread_ts)
+        sql_reply(text, channel, thread_ts, chat_messages)
         return ("", 200)
 
     except Exception as e:
