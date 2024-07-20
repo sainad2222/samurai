@@ -7,7 +7,7 @@ import plotly
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-from vanai_prompts import prompts
+from model.vanai_prompts import prompts
 
 import os
 
@@ -20,7 +20,10 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         Bedrock_Converse.__init__(
             self,
             client=client,
-            config={"modelId": "anthropic.claude-3-sonnet-20240229-v1:0","initial_prompt":prompts},
+            config={
+                "modelId": "anthropic.claude-3-sonnet-20240229-v1:0",
+                "initial_prompt": prompts,
+            },
         )
         # Change the path
         rsa_key_path = os.environ.get(
@@ -224,17 +227,22 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             elif len(numeric_cols) == 1 and len(categorical_cols) >= 1:
                 # Use a bar plot if there's one numeric and one categorical column
                 fig = px.bar(df, x=categorical_cols[0], y=numeric_cols[0])
-            elif len(categorical_cols) >= 1 and df[categorical_cols[0]].nunique() < 10 and len(numeric_cols) == 0:
+            elif (
+                len(categorical_cols) >= 1
+                and df[categorical_cols[0]].nunique() < 10
+                and len(numeric_cols) == 0
+            ):
                 # Use a pie chart for categorical data with fewer unique values
                 fig = px.pie(df, names=categorical_cols[0])
             elif len(categorical_cols) == 1 and len(numeric_cols) >= 1:
                 # Use a bar plot for multiple numeric columns with one categorical column
-                fig = px.bar(df,x=categorical_cols[0],y=numeric_cols)
-                fig.update_layout(barmode='relative', xaxis={'categoryorder':'category ascending'})
+                fig = px.bar(df, x=categorical_cols[0], y=numeric_cols)
+                fig.update_layout(
+                    barmode="relative", xaxis={"categoryorder": "category ascending"}
+                )
             else:
                 # Default to a simple line plot if above conditions are not met
                 fig = px.line(df)
-
 
         if fig is None:
             return None
