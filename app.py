@@ -9,7 +9,6 @@ from flask import Flask, request
 from model.samurai import Samurai
 
 from dotenv import load_dotenv
-from plotly_figure import get_plotly_figure_v2
 
 load_dotenv()
 
