@@ -22,7 +22,7 @@ vn = Samurai(client=boto3_bedrock)
 
 vn.connect_to_snowflake_v2()
 
-BOT_USER_ID = "U07DVEJ00NL"
+BOT_USER_ID = os.environ["BOT_USER_ID"]
 HEADERS = {"Authorization": "Bearer {}".format(os.environ["BOT_USER_OAUTH_TOKEN"])}
 
 
