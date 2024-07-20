@@ -150,7 +150,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         """
         first_message = None
         if len(previous_messages) > 0:
-            first_message = previous_messages[0]
+            first_message = previous_messages[0]["content"]
 
         if self.config is not None:
             initial_prompt = self.config.get("initial_prompt", None)
