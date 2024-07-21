@@ -118,6 +118,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                         {
                             "messages": converse_api_params["messages"],
                             "response": text_content,
+                            "system": converse_api_params["system"],
                         }
                     )
                 )
