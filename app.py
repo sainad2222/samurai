@@ -209,9 +209,9 @@ def sql_reply(question, sink, ts, previous_messages=None):
         reply_message(sink, sql, ts, broadcast=False)
         return
 
+    slack_sql = "```\n" + sql + "\n```"
     try:
         df = vn.run_sql(sql)
-        slack_sql = "```\n" + sql + "\n```"
         reply_message(sink, slack_sql, ts, broadcast=False)
     except Exception as e:
         if not previous_messages:
