@@ -237,6 +237,26 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
 
         return self.extract_sql(llm_response)
 
+    def generate_plotly_code_v2(
+            self, previous_message, question: str = None, sql: str = None, df_metadata: str = None, **kwargs
+    ) -> str:
+        if question is not None:
+            system_msg = f"The following is a pandas DataFrame that contains the results of the query that answers the question the user asked: '{question}'"
+        else:
+            system_msg = "The following is a pandas DataFrame "
+
+        if sql is not None:
+            system_msg += f"\n\nThe DataFrame was produced using this query: {sql}\n\n"
+
+        system_msg += f"The following is information about the resulting pandas DataFrame 'df': \n{df_metadata}"
+
+        prompt = "Can you generate the Python plotly code to chart the results of the dataframe? Assume the data is in a pandas dataframe called 'df'. If there is only one categorical or one numerical variable or one row, DO NOT CREATE charts - return an empty plotty code. If one categorical and one numerical variable are present, create line charts. If two categorical and one numerical variable are present, create stacked bar charts. Use color #00B899 if plotting a single variable as line or bar. Use Indicator with automatic alignment for all charts. Respond with only Python code. Do not answer with any explanations -- just the code."
+
+        # plotly_code = self.submit_prompt(message_log, kwargs=kwargs)
+        plotly_code = self.submit_prompt_v2(first_prompt=[self.system_message(system_msg)], previous_messages=previous_message, prompt=prompt, kwargs=kwargs)
+
+        return self._sanitize_plotly_code(self._extract_python_code(plotly_code))
+
     def get_plotly_figure_v2(
         self, plotly_code: str, df: pd.DataFrame, dark_mode: bool = True
     ) -> plotly.graph_objs.Figure:
