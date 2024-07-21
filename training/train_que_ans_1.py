@@ -455,7 +455,7 @@ vn.train(
     question="""Day wise Add fund starter to end conversion for the last 30 days. Conversion should happen in the same day as add fund start. End event is the user successfully adding funds""",
     sql="""/* We are using EPIFI_DATALAKE_TECH.EVENTS.USS_INVEST_CLIENT_EVENTS A which is an event table. From this table we are extracting date and actor_id
  Its joined with EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS. This is a wallet transaction level table. to get first add fund date. We are considering only add funds transactions which are successful.
- we have applied filters to select the actors for whom whostarted adding funds ( events for add fund starters  'USSBuyButtonClick' or 'USSAddFundsToWalletInputAmountPageLoad') 30 days
+ we have applied filters to select the actors for whom whostarted adding funds ( events for add fund starters   'USSAddFundsToWalletInputAmountPageLoad') 30 days
  we have applied filters to select the actors for whom who successfully added funds in the last 90 days.
 */
 select A.created_date_ist,  count(distinct B. actor_id)/ count(distinct A. actor_id) add_fund_start_to_end_conversion
@@ -465,7 +465,6 @@ from EPIFI_DATALAKE_TECH.EVENTS.USS_INVEST_CLIENT_EVENTS A
 where 1=1
 and event in 
     (
-    'USSBuyButtonClick',
     'USSAddFundsToWalletInputAmountPageLoad'
     )
 and date(timestamp_ist) >= current_date()  30
@@ -573,4 +572,445 @@ EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.STOCKS S
 on WSM.stock_id = S.id
 where 1=1
     and s. symbol = 'NVDA';""",
+)
+vn.train(
+    question="""Give me the daily trend of USS AUM of last 60 days""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY: Daily user activity data, including CREATED_DATE_IST and AUM_DELTA_USD. Columns used: CREATED_DATE_IST, AUM_DELTA_USD.
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT: User-level information, including ACTOR_ID and total_wallet_funds_added_usd. Column used: ACTOR_ID.
+CREATED_DATE_IST >= '2023-11-01' (in USS_USER_DAILY): Filters for users who have activity starting from November 1st, 2023.
+total_wallet_funds_added_usd > 0  (in USS_USER_BASE_FACT): Filters for users who have added funds to their US Stock account.
+date1: Extracts the date of the order.
+SUM(AUM) AS AUM: Calculates the sum of the cumulative AUM for each date, considering all users who have added funds.
+
+Approach:
+1. Create a CTE (`dm`) to map order dates to investment months for all users with a successful "Add Funds" transaction.
+2. Create another CTE (`USS_user_aum`) to calculate the cumulative AUM for each user based on order date and investment month.
+3.  Group the results by order date and calculate the total AUM for each date. 
+*/
+With dm as 
+(
+select ACTOR_ID, date1, inv_month
+    from    (
+            select CREATED_DATE_IST as date1, date_trunc(month, CREATED_DATE_IST) as inv_month
+            from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY
+            where CREATED_DATE_IST >='2023-11-01'
+            group by 1,2
+    ) a
+cross join 
+    (
+    select actor_id
+    from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT
+    where 1=1
+    and total_wallet_funds_added_usd > 0
+    ) b
+group by 1,2,3
+),
+USS_user_aum as (
+select d.ACTOR_ID, d.date1,d.inv_month as aum_month,
+sum(coalesce(AUM,0)) over(partition by d.actor_id order by d.date1 rows between unbounded preceding and current row) as aum
+from dm d
+left join
+(
+select CREATED_DATE_IST as mth,
+actor_id, sum(aum_delta_USD) as aum
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY
+group by 1,2
+) a
+on d.actor_id = a.actor_id and d.date1 = a.mth
+)
+select *
+from 
+(select date1 , sum(AUM) as AUM
+from USS_user_aum
+where 1=1
+group by 1)
+where  date1 >= current_date() - 59
+""",
+)
+vn.train(
+    question="""can you tell me what are the stocks which are in collection ID - COLLECTION_NAME_TOP_TRADED_AMONG_LEADING_MARKET_CAP? Also give me buy rating for these stocks""",
+    sql="""/*
+EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTION_STOCK_MAPPINGS: Maps stocks to specific collections. Columns used: stock_id, collection_id.
+EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.STOCKS: Contains detailed information about stocks, including symbol and estimates_info (which is a JSON object containing analyst ratings). Columns used: symbol, estimates_info.
+csm.collection_id = 'COLLECTION_NAME_TOP_TRADED_AMONG_LEADING_MARKET_CAP': Filters for stocks belonging to the collection with the ID 'COLLECTION_NAME_TOP_TRADED_AMONG_LEADING_MARKET_CAP'. 
+s.symbol: Extracts the stock symbol.
+coalesce((parse_json(s. estimates_info):analystRecommendations:buy ::numeric),0)*1.00 / nullif((coalesce((parse_json(s. estimates_info):analystRecommendations:buy ::numeric),0) + coalesce((parse_json(s. estimates_info):analystRecommendations:hold ::numeric),0) + coalesce((parse_json(s. estimates_info):analystRecommendations:sell ::numeric),0)),0) as buy_rating: Calculates the percentage of "Buy" ratings by analysts for each stock in the specified collection. 
+
+Approach:
+1. Join the `COLLECTION_STOCK_MAPPINGS` table with the `STOCKS` table using the `stock_id` column.
+2. Filter for stocks that belong to the collection with ID `'COLLECTION_NAME_TOP_TRADED_AMONG_LEADING_MARKET_CAP'`.
+3.  Parse the `estimates_info` JSON field to extract the "Buy", "Hold", and "Sell" ratings.
+4.  Calculate the percentage of "Buy" ratings for each stock. Buy rating is the percentage of analysts who have rated the stock as a buy
+*/
+SELECT 
+    s.symbol, coalesce((parse_json(s. estimates_info):analystRecommendations:buy ::numeric),0)*1.00 / 
+nullif((coalesce((parse_json(s. estimates_info):analystRecommendations:buy ::numeric),0) + coalesce((parse_json(s. estimates_info):analystRecommendations:hold ::numeric),0) + 
+coalesce((parse_json(s. estimates_info):analystRecommendations:sell ::numeric),0)),0) as buy_rating
+FROM EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.COLLECTION_STOCK_MAPPINGS csm
+JOIN EPIFI_DATALAKE_ALPACA.USSTOCKS_ALPACA.STOCKS s ON csm.stock_id = s.id
+WHERE csm.collection_id = 'COLLECTION_NAME_TOP_TRADED_AMONG_LEADING_MARKET_CAP';""",
+)
+vn.train(
+    question="""Give me the daily trend of USS AUM of last 60 days""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY: Daily user activity data, including CREATED_DATE_IST and AUM_DELTA_USD. Columns used: CREATED_DATE_IST, AUM_DELTA_USD.
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT: User-level information, including ACTOR_ID and total_wallet_funds_added_usd. Column used: ACTOR_ID.
+CREATED_DATE_IST >= '2023-11-01' (in USS_USER_DAILY): Filters for users who have activity starting from November 1st, 2023.
+total_wallet_funds_added_usd > 0  (in USS_USER_BASE_FACT): Filters for users who have added funds to their US Stock account.
+date1: Extracts the date of the order.
+SUM(AUM) AS AUM: Calculates the sum of the cumulative AUM for each date, considering all users who have added funds.
+
+Approach:
+1. Create a CTE (`dm`) to map order dates to investment months for all users with a successful "Add Funds" transaction.
+2. Create another CTE (`USS_user_aum`) to calculate the cumulative AUM for each user based on order date and investment month.
+3.  Group the results by order date and calculate the total AUM for each date. 
+4. Then we calculated month wise AUM which is the AUM on the last day of each month. For current month we take the AUM on yesterday
+*/
+With dm as 
+(
+select ACTOR_ID, date1, inv_month
+    from    (
+            select CREATED_DATE_IST as date1, date_trunc(month, CREATED_DATE_IST) as inv_month
+            from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY
+            where CREATED_DATE_IST >='2023-11-01'
+            group by 1,2
+    ) a
+cross join 
+    (
+    select actor_id
+    from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT
+    where 1=1
+    and total_wallet_funds_added_usd > 0
+    ) b
+group by 1,2,3
+),
+USS_user_aum as (
+select d.ACTOR_ID, d.date1,d.inv_month as aum_month,
+sum(coalesce(AUM,0)) over(partition by d.actor_id order by d.date1 rows between unbounded preceding and current row) as aum
+from dm d
+left join
+(
+select CREATED_DATE_IST as mth,
+actor_id, sum(aum_delta_USD) as aum
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_DAILY
+group by 1,2
+) a
+on d.actor_id = a.actor_id and d.date1 = a.mth
+)
+
+select date_trunc(month, date1) as month, AUM
+from 
+(select date1 , sum(AUM) as AUM
+from USS_user_aum
+where 1=1
+group by 1)
+where  date1 >= current_date() - 59
+    and date1 = case when current_date()-1 < last_day(date1) then current_date()-1 else last_day(date1) end
+;""",
+)
+vn.train(
+    question="""Total stocks bought prev month versus this month / Total stocks bought prev month vs this month""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS: This table contains information about US Stock transactions. Columns used: txn_created_month, qty_confirmed, type, txn_status.
+type = 'BUY': Filters for transactions where the order type is a "BUY" order.
+txn_status = 'ORDER_SUCCESS': Filters for transactions where the order was successfully completed.
+sum(case when txn_created_month = date_trunc(month, dateadd(month, -1, current_date())) then qty_confirmed end) as prev_month_qty: Calculates the sum of the confirmed quantities (qty_confirmed) for successful "BUY" orders that occurred in the previous month.
+sum(case when txn_created_month = date_trunc(month, current_date()) then qty_confirmed end) as curr_month_qty: Calculates the sum of the confirmed quantities (qty_confirmed) for successful "BUY" orders that occurred in the current month.
+
+Approach:
+1. Filter the `USS_TRANSACTIONS` table to include only successful "BUY" orders.
+2. Calculate the sum of `qty_confirmed` for orders in the previous month using `date_trunc(month, dateadd(month, -1, current_date()))`.
+3. Calculate the sum of `qty_confirmed` for orders in the current month using `date_trunc(month, current_date())`.
+*/
+select
+    sum(case when txn_created_month = date_trunc(month, dateadd(month, -1, current_date())) then qty_confirmed end) as prev_month_qty,
+    sum(case when txn_created_month = date_trunc(month, current_date()) then qty_confirmed end) as curr_month_qty
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS
+where 1=1
+    and type = 'BUY' 
+    and txn_status = 'ORDER_SUCCESS';""",
+)
+vn.train(
+    question="""how many users are currently holding any stock? / how many users are currently invested in us stock?""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS: This table contains information about US Stock transactions. Columns used: actor_id, type, qty_confirmed.
+net_qty > 0 (in the subquery):  Filters for users who have a positive net quantity of stocks, indicating they have bought more stocks than they have sold. this means they are holding stock and are currently invested in US Stock
+count(distinct actor_id) as users_holding_stocks:  Calculates the count of unique users (actor_id) who have a positive net quantity of stocks, signifying they are currently holding stocks.
+
+Approach:
+1. Create a subquery to calculate the net quantity of stocks for each user by summing `qty_confirmed` for "BUY" orders and subtracting the sum of `qty_confirmed` for "SELL" orders.
+2. Filter the subquery results to include only users with a positive `net_qty`.
+3. Count the distinct users (actor_id) to determine the number of users currently holding stocks.
+4. Holding a Stock means they have >0 net stocks 
+*/
+select count(distinct actor_id) as users_holding_stocks from ( select actor_id, sum(case when type = 'BUY' then qty_confirmed else 0 end) - sum(case when type = 'SELL' then qty_confirmed else 0 end) as net_qty from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS where txn_status = 'ORDER_SUCCESS' group by 1 ) temp where net_qty > 0;""",
+)
+vn.train(
+    question="""How many users are holding Google? How many users are invested in Google?""",
+    sql="""select count(distinct actor_id) as users_holding_stocks from ( select actor_id, sum(case when type = 'BUY' then qty_confirmed else 0 end) - sum(case when type = 'SELL' then qty_confirmed else 0 end) as net_qty from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS 
+where txn_status = 'ORDER_SUCCESS' 
+and STock_symbol = 'GOOGL'
+group by 1 ) temp 
+where net_qty > 0
+    
+;   """,
+)
+vn.train(
+    question="""how many users added funds in May""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS: This table contains comprehensive information about "Add Funds" and "Withdraw Funds" transactions related to US Stocks USD wallets. Columns used: actor_id, wallet_order_type_derived, status, created_month_ist.
+wallet_order_type_derived = 'Add Funds':  Filters for transactions that are "Add Funds" transactions.
+status = 'WALLET_ORDER_STATUS_SUCCESS': Filters for transactions that were successful.
+created_month_ist = '2024-05-01': Filters for transactions that occurred in May 2024.
+count(distinct actor_id): Calculates the count of unique users (actor_id) who made successful "Add Funds" transactions in May 2024.
+
+Approach:
+1. Filter the `USS_WALLET_ORDERS` table to include only successful "Add Funds" transactions that occurred in May 2024.
+2. Count the distinct users (actor_id) to determine the number of unique users who made these transactions.
+*/
+select count(distinct actor_id)
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS
+where wallet_order_type_derived = 'Add Funds' 
+and status = 'WALLET_ORDER_STATUS_SUCCESS'
+and created_month_ist = '2024-05-01';""",
+)
+vn.train(
+    question="""How many users bought crowdrstrike stocks in last 7 days?""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS:  This table contains information about US Stock transactions. Columns used: actor_id, txn_status, type, stock_symbol, txn_created_date.
+txn_status = 'ORDER_SUCCESS':  Filters for transactions that were successfully completed.
+type = 'BUY': Filters for transactions where the order type is a "BUY" order.
+stock_symbol = 'CRWD': Filters for transactions involving the stock symbol "CRWD".
+txn_created_date >= current_date() - 7: Filters for transactions that occurred in the last 7 days (including today).
+count(distinct actor_id) as users_bought_crwd:  Calculates the count of unique users (actor_id) who have successfully purchased the stock "CRWD" in the last 7 days.
+
+Approach:
+1. Filter the `USS_TRANSACTIONS` table to include only successful "BUY" orders for the stock 'CRWD' within the last 7 days.
+2. Count the distinct users (actor_id) to determine the number of unique users who bought 'CRWD' during that period.
+*/
+select count(distinct actor_id) as users_bought_crwd
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS
+where txn_status = 'ORDER_SUCCESS'
+  and type = 'BUY'
+  and stock_symbol = 'CRWD'
+  and txn_created_date >= current_date() - 7;""",
+)
+vn.train(
+    question="""what is the median value of buy order amount in the last 30 days""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS: This table contains information about US Stock transactions. Columns used: txn_amount_confirmed_usd, txn_created_date, type, txn_status.
+txn_created_date >= dateadd(day, -30, current_date()): Filters for transactions that occurred in the last 30 days (including today).
+type = 'BUY': Filters for transactions where the order type is a "BUY" order.
+txn_status = 'ORDER_SUCCESS': Filters for transactions where the order was successfully completed.
+median(txn_amount_confirmed_usd) as median_successful_buy_order_value:  Calculates the median value of the confirmed transaction amount in USD (txn_amount_confirmed_usd) for successful "BUY" orders within the last 30 days.
+
+Approach:
+1. Filter the `USS_TRANSACTIONS` table to include only successful "BUY" orders within the last 30 days.
+2. Calculate the median value of the confirmed transaction amounts (`txn_amount_confirmed_usd`) for those orders.
+*/
+select median(txn_amount_confirmed_usd) as median_successful_buy_order_value
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS
+where txn_created_date >= dateadd(day, -30, current_date())
+  and type = 'BUY'
+  and txn_status = 'ORDER_SUCCESS';""",
+)
+vn.train(
+    question="""what is the 25th, 75th, 90th percentile of Buy transaction amount""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS: This table contains information about US Stock transactions. Columns used: txn_amount_confirmed_usd, txn_created_date, type, txn_status.
+txn_created_date >= dateadd(day, -6, current_date()): Filters for transactions that occurred in the last 6 days (including today).
+type = 'BUY': Filters for transactions where the order type is a "BUY" order.
+txn_status = 'ORDER_SUCCESS': Filters for transactions where the order was successfully completed.
+approx_percentile(txn_amount_confirmed_usd, 0.25)  as P25: Calculates the approximate 25th percentile of the confirmed transaction amounts in USD (txn_amount_confirmed_usd) for successful "BUY" orders within the last 6 days.
+approx_percentile(txn_amount_confirmed_usd, 0.75)  as P75: Calculates the approximate 75th percentile of the confirmed transaction amounts in USD (txn_amount_confirmed_usd) for successful "BUY" orders within the last 6 days.
+approx_percentile(txn_amount_confirmed_usd, 0.90)  as P90: Calculates the approximate 90th percentile of the confirmed transaction amounts in USD (txn_amount_confirmed_usd) for successful "BUY" orders within the last 6 days.
+
+Approach:
+1. Filter the `USS_TRANSACTIONS` table to include only successful "BUY" orders within the last 6 days.
+2. Calculate the approximate 25th, 75th, and 90th percentiles of the confirmed transaction amounts (`txn_amount_confirmed_usd`) for those orders using the `approx_percentile` function.
+*/
+select approx_percentile(txn_amount_confirmed_usd, 0.25)  as P25,
+        approx_percentile(txn_amount_confirmed_usd, 0.75)  as P75,
+        approx_percentile(txn_amount_confirmed_usd, 0.90)  as P90
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS
+where txn_created_date >= dateadd(day, -6, current_date())
+  and type = 'BUY'
+  and txn_status = 'ORDER_SUCCESS';""",
+)
+vn.train(
+    question="""can you list all the columns and their descriptions in EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS W """,
+    sql="""describe table EPIFI_DATAMART_ALPACA.USSTOCKS.USS_WALLET_ORDERS;""",
+)
+vn.train(
+    question="""what % of people who have >0 AUM us stocks currently and hold at least 2 different stocks? """,
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT: User-level information, including ACTOR_ID and AUM_USD. Columns used: ACTOR_ID, AUM_USD.
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS: This table contains information about US Stock transactions. Columns used: actor_id, type, qty_confirmed, stock_id, txn_status.
+None (but there are HAVING clauses within subqueries).
+count(distinct B. actor_id) * 1.00 / count(distinct case when AUM_USD > 0 then A.Actor_id end) as perc_: 
+    Calculates the percentage of users who are holding at least 2 different stocks (based on the B subquery) among those with a positive AUM (AUM_USD > 0).
+
+Approach:
+1. Create a subquery to calculate the net quantity of stocks for each user by summing qty_confirmed for "BUY" orders and subtracting the sum of qty_confirmed for "SELL" orders.
+2. Filter the subquery results to include only users with a positive net_qty.
+3. Create another subquery to count the number of distinct stocks held by each user and filter users who are holding more than 1 stocks
+4. Join the user-level information (USS_USER_BASE_FACT) with the subquery results to identify users holding at least 2 stocks.
+5. Calculate the percentage of these users among those with a positive AUM.
+*/
+select  
+    count(distinct B. actor_id) * 1.00 / count(distinct case when AUM_USD > 0 then A.Actor_id end) as perc_
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT A
+left join 
+    (select actor_id, count(distinct stock_id) as num_stocks_holding
+    from 
+    (select actor_id, stock_id,
+        sum(case when type = 'BUY' then qty_confirmed else 0 end) - sum(case when type = 'SELL' then qty_confirmed else 0 end) as net_qty 
+    from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS T
+    where txn_status = 'ORDER_SUCCESS' 
+    group by 1,2  
+    having net_qty > 0)
+    group by 1
+    having num_stocks_holding >= 2) B
+on A. actor_id = B. actor_id""",
+)
+vn.train(
+    question="""print the stocks of the user who currently holds the most stocks?""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS: This table contains information about US Stock transactions. Columns used: actor_id, type, qty_confirmed, stock_symbol, stock_id, txn_status.
+None (but there are HAVING clauses within subqueries).
+stock_symbol: Extracts the stock symbol from the A subquery.
+
+Approach:
+1.  Calculate the net quantity of stocks for each user by summing `qty_confirmed` for "BUY" orders and subtracting the sum of `qty_confirmed` for "SELL" orders. Filter for users with a positive net quantity.
+2.  Count the number of distinct stocks held by each user, ranking them based on the count in descending order.
+3.  Select the user with the highest number of distinct stocks (the user with rank = 1).
+4.  Finally, join the results with the table that has the net quantities for users to identify the stock symbol held by that user.
+*/
+select  stock_symbol
+from 
+(select actor_id,stock_symbol,
+    sum(case when type = 'BUY' then qty_confirmed else 0 end) - sum(case when type = 'SELL' then qty_confirmed else 0 end) as net_qty 
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS T
+where txn_status = 'ORDER_SUCCESS' 
+group by 1,2 
+having net_qty > 0) A
+inner join     
+(select 
+actor_id, 
+    count(distinct stock_id) as num_stocks_holding, 
+    row_number() over( order by num_stocks_holding desc ) rnk
+from 
+    (select actor_id, stock_id,
+        sum(case when type = 'BUY' then qty_confirmed else 0 end) - sum(case when type = 'SELL' then qty_confirmed else 0 end) as net_qty 
+    from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS T
+    where txn_status = 'ORDER_SUCCESS' 
+    group by 1,2  
+    having net_qty > 0)
+group by 1
+qualify rnk = 1
+)B
+on A. actor_id = B. actor_id
+;""",
+)
+vn.train(
+    question="""What is the average and median time (in days) to purchase first US stock post account creation?""",
+    sql="""/*To calculate the average time to first purchase:
+1. We filter for only active accounts where first_buy_date is not null (accounts that made a purchase)
+2. We calculate the difference between first_buy_date and acct_creation_date_ist in days using datediff()
+3. We take the average of this difference 
+
+To calculate the median time:
+1. We filter for only active accounts where first_buy_date is not null
+2. We calculate the difference between first_buy_date and acct_creation_date_ist in days using datediff()
+3. We use the approx_percentile() function to get the 50th percentile (median) value of this difference
+*/
+
+select 
+    avg(datediff(day, acct_creation_date_ist, first_buy_date)) as avg_days_to_first_purchase,
+    approx_percentile(datediff(day, acct_creation_date_ist, first_buy_date), 0.5) as median_days_to_first_purchase
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT
+where account_status = 'ACTIVE'
+and first_buy_date is not null;""",
+)
+vn.train(
+    question="""How many users have bought 5 stocks in first 14 days of account creation""",
+    sql="""/*
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT: User-level information, including ACTOR_ID, acct_creation_date_ist, and account_status. Columns used: ACTOR_ID, acct_creation_date_ist, account_status.
+EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS: This table contains information about US Stock transactions. Columns used: actor_id, txn_created_date, stock_id, txn_status, type.
+txn_status = 'ORDER_SUCCESS': Filters for transactions that were successfully completed.
+type = 'BUY': Filters for transactions where the order type is a "BUY" order.
+U. account_status = 'ACTIVE': Filters for users whose account status is 'ACTIVE'.
+count(distinct actor_id):  Calculates the count of unique users (actor_id) who meet the criteria defined within the subquery. 
+
+Approach:
+1. Create a subquery to identify users who have successfully bought 5 different stocks within the first 14 days after their account creation.
+2. Filter for users with an active account status.
+3. Join the `USS_USER_BASE_FACT` table with the `USS_TRANSACTIONS` table to identify transactions within the specified timeframe.
+4. Count the distinct users who meet the criteria to determine the number of users who have bought 5 different stocks within the first 14 days.
+*/
+select count(distinct actor_id) 
+from 
+(select U.actor_id
+from EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT U
+left join EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS T
+on T. actor_id = U. actor_id
+and T. txn_created_date <= dateadd(day, 13, acct_creation_date_ist)
+where txn_status = 'ORDER_SUCCESS'
+    and type = 'BUY'
+    and U. account_status = 'ACTIVE'
+group by 1    
+having count(distinct stock_id) = 5)""",
+)
+vn.train(
+    question="""The conversion rate of US Stocks details page is defined as the number of people who bought or sold a stock on the same day after landing on US Stocks details page. Can you tell me the conversion rate? Can you exclude users who don't have an active account when they visit the stock details page? You can refer to account creation date ist to refer to when the account became active""",
+    sql="""/*
+stock_visitors:  A Common Table Expression (CTE) that identifies unique users who have visited the "USSDetailsPageLoaded" page. Columns used: actor_id, visit_date.
+successful_orders: A CTE that identifies unique users who have placed successful orders. Columns used: actor_id, order_date.
+active_users: A CTE that identifies active users (account_status = 'ACTIVE'). Columns used: actor_id, acct_creation_date_ist.
+E.event = 'USSDetailsPageLoaded' (in stock_visitors): Filters for events where the user has loaded the stock details page.
+T.txn_status = 'ORDER_SUCCESS' (in successful_orders): Filters for transactions that were successfully completed.
+U.account_status = 'ACTIVE' (in active_users): Filters for users whose accounts are active.
+ROUND(COUNT(DISTINCT CASE WHEN O.actor_id IS NOT NULL THEN V.actor_id END) * 1.0 / COUNT(DISTINCT V.actor_id), 2) AS conversion_rate:  Calculates the conversion rate, rounded to 2 decimal places, by dividing the number of distinct users with successful orders who also visited the stock details page by the total number of distinct users who visited the stock details page. 
+
+Approach:
+1. Create CTEs to identify unique stock visitors, successful order placers, and active users.
+2.  Left join `stock_visitors` with `successful_orders` to identify users who have both visited the stock details page and placed a successful order on the same day.
+3. Inner join with `active_users` to include only active users and transactions occurring after account creation.
+4. Calculate the conversion rate by dividing the count of distinct users with successful orders (who also visited the stock details page) by the total count of distinct stock visitors. 
+*/
+WITH stock_visitors AS (
+  SELECT DISTINCT
+    E.actor_id,
+    DATE(E.timestamp_ist) AS visit_date
+  FROM EPIFI_DATALAKE_TECH.EVENTS.USS_INVEST_CLIENT_EVENTS E
+  WHERE E.event = 'USSDetailsPageLoaded'
+),
+successful_orders AS (
+  SELECT DISTINCT
+    T.actor_id,
+    DATE(T.txn_created_date) AS order_date
+  FROM EPIFI_DATAMART_ALPACA.USSTOCKS.USS_TRANSACTIONS T
+  WHERE T.txn_status = 'ORDER_SUCCESS'
+),
+active_users AS (
+  SELECT
+    U.actor_id,
+    U.acct_creation_date_ist
+  FROM EPIFI_DATAMART_ALPACA.USSTOCKS.USS_USER_BASE_FACT U
+  WHERE U.account_status = 'ACTIVE'
+)
+SELECT
+  ROUND(
+    COUNT(DISTINCT CASE WHEN O.actor_id IS NOT NULL THEN V.actor_id END) * 1.0
+    / COUNT(DISTINCT V.actor_id),
+    2
+  ) AS conversion_rate
+FROM stock_visitors V
+LEFT JOIN successful_orders O
+  ON V.actor_id = O.actor_id
+  AND V.visit_date = O.order_date
+INNER JOIN active_users A
+  ON V.actor_id = A.actor_id
+  AND V.visit_date >= DATE(A.acct_creation_date_ist);""",
 )

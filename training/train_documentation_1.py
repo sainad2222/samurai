@@ -33,7 +33,7 @@ There is a US Stocks collections page
 The event to track here is ‘USSCollectionPageload’
 There is an event property called ‘CollectionID’ which will be the collection from the US Stocks collections table which can be matched. 
 
-Top of funnel is defined as when a user visits any US Stocks page.
+Top of funnel is defined as when a user visits any of the above US Stocks page.
 
 Top of funnel for a day is defined as when a user visits any US Stocks page in a day. 
 Top of funnel for a week is defined as when a user visits any US Stocks page in a week. 
@@ -75,9 +75,7 @@ vn.train(
     documentation="""Add Funds starter
 
 Any of the below events if it is fired, will be counted as an Add funds starter. 
-
- 'USSBuyButtonClick',
- 'USSAddFundsToWalletInputAmountPageLoad'
+ 'USSAddFundsToWalletInputAmountPageLoad' 
 Add funds starter is defined as when a user fires any of the above events in that particular time period.
 
 Add funds starter for the day is defined as when a user fires any of the above events in that particular day.
@@ -97,4 +95,3 @@ vn.train(
 
 Firehose ID is just actor ID in the DP vendor mappings. Moengage ID is the ID used for communications. It’s often a common use case of product managers to fetch moengage IDs of specific set of cohorts that they need to send comms to. Firehose ID & actor ID have the same values. Hence for this use-case, fetch the actor IDs & use it to join with firehose ID in DP vendor mappings and then give moengage IDs from there."""
 )
-
