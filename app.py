@@ -240,7 +240,7 @@ def sql_reply(question, sink, ts, previous_messages=None):
     # plotly_code = vn.generate_plotly_code_v2(
     #     previous_message=previous_messages, question=question, sql=sql, df=df
     # )
-    fig = vn.get_plotly_figure_v2(plotly_code=plotly_code, df=df)
+    fig = vn.get_plotly_figure_v2( df=df)
 
     if fig:
         img = fig.to_image(format="png", width=800, height=600, scale=2)
