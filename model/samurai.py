@@ -290,8 +290,10 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         """
         ldict = {"df": df, "px": px, "go": go}
         try:
-            exec(plotly_code, globals(), ldict)
+            if plotly_code == "":
+                raise Exception("No plotly code provided")
 
+            exec(plotly_code, globals(), ldict)
             fig = ldict.get("fig", None)
         except Exception as e:
             # Inspect data types
