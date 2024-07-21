@@ -214,6 +214,7 @@ def sql_reply(question, sink, ts, previous_messages=None):
         df = vn.run_sql(sql)
         reply_message(sink, slack_sql, ts, broadcast=False)
     except Exception as e:
+        print("ERROR running sql", e)
         if not previous_messages:
             previous_messages = []
         previous_messages.append({"role": "user", "content": question})
@@ -228,6 +229,7 @@ def sql_reply(question, sink, ts, previous_messages=None):
         try:
             df = vn.run_sql(sql)
         except Exception as e:
+            print("ERROR running second sql", e)
             reply_message(sink, f":cry: Sorry! I encountered an error while executing the query in Snowflake.```{e}```", ts, broadcast=False)
             return
 
@@ -298,10 +300,12 @@ def handle_thread_replies(data):
         for message in messages[:-1]:
             if "text" not in message:
                 continue
-            if message["user"] == BOT_USER_ID and not is_first:
+            if message["user"] == BOT_USER_ID and not is_first and message["text"].strip() != '':
                 chat_messages.append({"role": "assistant", "content": message["text"]})
             else:
                 txt = message["text"]
+                if not txt:
+                    continue
                 if is_first:
                     txt = message["text"].split('"')[1]
                     chat_messages.append({"role": "user", "content": txt})
