@@ -1,7 +1,7 @@
 import pandas as pd
 
 # Load the CSV file
-file_path = "/Users/kanishkkunal/Downloads/Untitled spreadsheet.csv"
+file_path = "/Users/sainath/Desktop/common_knowledge.csv"
 data = pd.read_csv(file_path)
 
 # Generate vn.train statements

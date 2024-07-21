@@ -18,7 +18,14 @@ load_dotenv()
 
 class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
     def __init__(self, client=None, config=None):
-        ChromaDB_VectorStore.__init__(self, config=config)
+        ChromaDB_VectorStore.__init__(
+            self,
+            config={
+                "n_results_sql": 6,
+                "n_results_documentation": 4,
+                "n_results_ddl": 20,
+            },
+        )
         Bedrock_Converse.__init__(
             self,
             client=client,
