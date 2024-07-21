@@ -281,10 +281,10 @@ def handle_events():
 
 
 def handle_thread_replies(data):
-    channel = data["event"]["channel"]
-    thread_ts = data["event"]["thread_ts"]
-    text = data["event"]["text"]
     try:
+        channel = data["event"]["channel"]
+        thread_ts = data["event"]["thread_ts"]
+        text = data["event"]["text"]
         response = requests.post(
             "https://slack.com/api/conversations.replies",
             params={
