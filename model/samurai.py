@@ -15,6 +15,7 @@ import os
 
 load_dotenv()
 
+MAX_SQL_RETRY = 5
 
 class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
     def __init__(self, client=None, config=None):
@@ -199,47 +200,42 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             if allow_llm_to_see_data:
                 intermediate_sql = self.extract_sql(llm_response)
 
-                try:
-                    self.log(title="Running Intermediate SQL", message=intermediate_sql)
-                    df = self.run_sql(intermediate_sql)
+                sql_retry_remaining = MAX_SQL_RETRY
+                intermediate_sql_prompt = question
+                while sql_retry_remaining > 0:
+                    try:
+                        self.log(title="Running Intermediate SQL", message=intermediate_sql)
+                        df = self.run_sql(intermediate_sql)
+                        prompt = self.get_sql_prompt(
+                            initial_prompt=initial_prompt,
+                            question=first_message,
+                            question_sql_list=question_sql_list,
+                            ddl_list=ddl_list,
+                            doc_list=doc_list
+                                     + [
+                                         f"The following is a pandas DataFrame with the results of the intermediate SQL query {intermediate_sql}: \n"
+                                         + df.to_markdown()
+                                     ],
+                            **kwargs,
+                        )
+                        # self.log(title="Final SQL Prompt", message=first_prompt)
+                        llm_response = self.submit_prompt_v2(
+                            prompt, previous_messages, intermediate_sql_prompt, **kwargs
+                        )
+                        break
+                        # self.log(title="LLM Response", message=llm_response)
+                    except Exception as e:
+                        print("ERROR running Intermediate sql", e)
+                        if not previous_messages:
+                            previous_messages = []
+                        previous_messages.append(self.user_message(first_message))
+                        previous_messages.append(self.assistant_message(first_message))
 
-                    prompt = self.get_sql_prompt(
-                        initial_prompt=initial_prompt,
-                        question=first_message,
-                        question_sql_list=question_sql_list,
-                        ddl_list=ddl_list,
-                        doc_list=doc_list
-                        + [
-                            f"The following is a pandas DataFrame with the results of the intermediate SQL query {intermediate_sql}: \n"
-                            + df.to_markdown()
-                        ],
-                        **kwargs,
-                    )
-                    # self.log(title="Final SQL Prompt", message=first_prompt)
-                    llm_response = self.submit_prompt_v2(
-                        prompt, previous_messages, question, **kwargs
-                    )
-                    # self.log(title="LLM Response", message=llm_response)
-                except Exception as e:
-                    if not previous_messages:
-                        previous_messages = []
-                    previous_messages.append(self.user_message(first_message))
-                    previous_messages.append(self.assistant_message(first_message))
-                    prompt = self.get_sql_prompt(
-                        initial_prompt=initial_prompt,
-                        question=first_message,
-                        question_sql_list=question_sql_list,
-                        ddl_list=ddl_list,
-                        doc_list=doc_list,
-                        **kwargs,
-                    )
-                    llm_response = self.submit_prompt_v2(
-                        prompt,
-                        previous_messages,
-                        f"Got the following error {e}, can you recheck syntax?",
-                        **kwargs,
-                    )
-                    return f"Error running intermediate SQL: {e}"
+                        intermediate_sql_prompt =f"Got the following error {e}, can you recheck syntax? - do not add comments to the sql query",
+
+                        sql_retry_remaining -= 1
+                        if sql_retry_remaining == 0:
+                            return f"Error running intermediate SQL: {e}"
 
         return self.extract_sql(llm_response)
 

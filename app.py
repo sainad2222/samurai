@@ -7,6 +7,7 @@ import time
 from flask_cors import CORS
 from flask import Flask, request
 from model.samurai import Samurai
+from model.samurai import MAX_SQL_RETRY
 
 from dotenv import load_dotenv
 
@@ -205,34 +206,32 @@ def sql_reply(question, sink, ts, previous_messages=None):
         reply_message(sink, sql, ts, broadcast=False)
         return
 
-    slack_sql = "```\n" + sql + "\n```"
-    try:
-        df = vn.run_sql(sql)
-        reply_message(sink, slack_sql, ts, broadcast=False)
-    except Exception as e:
-        print("ERROR running sql", e)
-        if not previous_messages:
-            previous_messages = []
-        previous_messages.append({"role": "user", "content": question})
-        previous_messages.append({"role": "assistant", "content": slack_sql})
-        sql = vn.generate_sql_v2(
-            previous_messages,
-            f"Got the following error {e}, can you recheck syntax?",
-            allow_llm_to_see_data=True,
-        )
-        slack_sql = "```\n" + sql + "\n```"
-        reply_message(sink, slack_sql, ts, broadcast=False)
+    sql_retry_remaining = MAX_SQL_RETRY
+    while sql_retry_remaining > 0:
         try:
             df = vn.run_sql(sql)
+            slack_sql = "```\n" + sql + "\n```"
+            reply_message(sink, slack_sql, ts, broadcast=False)
+            break
         except Exception as e:
-            print("ERROR running second sql", e)
-            reply_message(
-                sink,
-                f":cry: Sorry! I encountered an error while executing the query in Snowflake.```{e}```",
-                ts,
-                broadcast=False,
+            print("ERROR running sql", e)
+            if not previous_messages:
+                previous_messages = []
+            previous_messages.append({"role": "user", "content": question})
+            slack_sql = "```\n" + sql + "\n```"
+            previous_messages.append({"role": "assistant", "content": slack_sql})
+            sql = vn.generate_sql_v2(
+                previous_messages,
+                f"Got the following error {e}, can you recheck syntax? - do not add comments to the sql query.",
+                allow_llm_to_see_data=True,
             )
-            return
+            sql_retry_remaining -= 1
+
+            if sql_retry_remaining == 0:
+                slack_sql = "```\n" + sql + "\n```"
+                reply_message(sink, slack_sql, ts, broadcast=False)
+                reply_message(sink,f":cry: Sorry! I encountered an error while executing the query in Snowflake.```{e}```",ts,broadcast=False)
+                return
 
     slack_table = "```\n" + df.head(10).to_markdown(index=False) + "\n...```"
 
