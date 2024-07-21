@@ -187,7 +187,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
 
                     prompt = self.get_sql_prompt(
                         initial_prompt=initial_prompt,
-                        question=question,
+                        question=first_message,
                         question_sql_list=question_sql_list,
                         ddl_list=ddl_list,
                         doc_list=doc_list
@@ -199,7 +199,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                     )
                     # self.log(title="Final SQL Prompt", message=first_prompt)
                     llm_response = self.submit_prompt_v2(
-                        first_prompt, previous_messages, prompt, **kwargs
+                        prompt, previous_messages, question, **kwargs
                     )
                     # self.log(title="LLM Response", message=llm_response)
                 except Exception as e:
