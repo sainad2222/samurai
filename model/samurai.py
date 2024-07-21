@@ -10,6 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
 from model.vanai_prompts import prompts
+from model.chart_code import generate_chart
 
 import os
 
@@ -290,59 +291,61 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         Returns:
             plotly.graph_objs.Figure: The Plotly figure.
         """
-        ldict = {"df": df, "px": px, "go": go}
-        try:
-            if plotly_code == "":
-                raise Exception("No plotly code provided")
+        # ldict = {"df": df, "px": px, "go": go}
+        # try:
+        #     if plotly_code == "":
+        #         raise Exception("No plotly code provided")
 
-            exec(plotly_code, globals(), ldict)
-            fig = ldict.get("fig", None)
-        except Exception as e:
+        #     exec(plotly_code, globals(), ldict)
+        #     fig = ldict.get("fig", None)
+        # except Exception as e:
+
+        fig = generate_chart(df.copy())
             # Inspect data types
-            numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
-            categorical_cols = df.select_dtypes(
-                include=["object", "category"]
-            ).columns.tolist()
-            if len(numeric_cols) == 1 and len(categorical_cols) == 0:
-                return None
-            elif len(numeric_cols) == 0 and len(categorical_cols) == 1:
-                return None
-            elif len(numeric_cols) == 0 and len(categorical_cols) == 0:
-                return None
-            # Decision-making for plot type
-            elif len(numeric_cols) >= 2 and len(categorical_cols) == 0:
-                # Use the first two numeric columns for a scatter plot
-                fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1])
-            elif len(numeric_cols) == 1 and len(categorical_cols) >= 1:
-                # Use a bar plot if there's one numeric and one categorical column
-                fig = px.bar(df, x=categorical_cols[0], y=numeric_cols[0])
-                fig.update_traces(marker_color="#00b899")
-                for i, row in df.iterrows():
-                    fig.add_annotation(
-                        x=row[categorical_cols[0]],
-                        y=row[numeric_cols[0]],
-                        text=f"{row[numeric_cols[0]]}",
-                        showarrow=True,
-                        arrowhead=2,
-                        ax=0,
-                        ay=-30,
-                    )
-            elif (
-                len(categorical_cols) >= 1
-                and df[categorical_cols[0]].nunique() < 10
-                and len(numeric_cols) == 0
-            ):
-                # Use a pie chart for categorical data with fewer unique values
-                fig = px.pie(df, names=categorical_cols[0])
-            elif len(categorical_cols) == 1 and len(numeric_cols) >= 1:
-                # Use a bar plot for multiple numeric columns with one categorical column
-                fig = px.bar(df, x=categorical_cols[0], y=numeric_cols)
-                fig.update_layout(
-                    barmode="relative", xaxis={"categoryorder": "category ascending"}
-                )
-            else:
-                # Default to a simple line plot if above conditions are not met
-                fig = px.line(df)
+            # numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
+            # categorical_cols = df.select_dtypes(
+            #     include=["object", "category"]
+            # ).columns.tolist()
+            # if len(numeric_cols) == 1 and len(categorical_cols) == 0:
+            #     return None
+            # elif len(numeric_cols) == 0 and len(categorical_cols) == 1:
+            #     return None
+            # elif len(numeric_cols) == 0 and len(categorical_cols) == 0:
+            #     return None
+            # # Decision-making for plot type
+            # elif len(numeric_cols) >= 2 and len(categorical_cols) == 0:
+            #     # Use the first two numeric columns for a scatter plot
+            #     fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1])
+            # elif len(numeric_cols) == 1 and len(categorical_cols) >= 1:
+            #     # Use a bar plot if there's one numeric and one categorical column
+            #     fig = px.bar(df, x=categorical_cols[0], y=numeric_cols[0])
+            #     fig.update_traces(marker_color="#00b899")
+            #     for i, row in df.iterrows():
+            #         fig.add_annotation(
+            #             x=row[categorical_cols[0]],
+            #             y=row[numeric_cols[0]],
+            #             text=f"{row[numeric_cols[0]]}",
+            #             showarrow=True,
+            #             arrowhead=2,
+            #             ax=0,
+            #             ay=-30,
+            #         )
+            # elif (
+            #     len(categorical_cols) >= 1
+            #     and df[categorical_cols[0]].nunique() < 10
+            #     and len(numeric_cols) == 0
+            # ):
+            #     # Use a pie chart for categorical data with fewer unique values
+            #     fig = px.pie(df, names=categorical_cols[0])
+            # elif len(categorical_cols) == 1 and len(numeric_cols) >= 1:
+            #     # Use a bar plot for multiple numeric columns with one categorical column
+            #     fig = px.bar(df, x=categorical_cols[0], y=numeric_cols)
+            #     fig.update_layout(
+            #         barmode="relative", xaxis={"categoryorder": "category ascending"}
+            #     )
+            # else:
+            #     # Default to a simple line plot if above conditions are not met
+            #     fig = px.line(df)
 
         if fig is None:
             return None
