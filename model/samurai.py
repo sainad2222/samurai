@@ -69,7 +69,6 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             "top_p": 1,  # setting top_p value for nucleus sampling
         }
 
-        no_system_prompt = []
         system_message = None
         no_system_prompt = []
         for prompt_message in first_prompt:
@@ -80,16 +79,18 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                 no_system_prompt.append(
                     {"role": role, "content": [{"text": prompt_message["content"]}]}
                 )
-        for message in previous_messages:
-            if message["role"] == "user":
-                no_system_prompt.append(
-                    {"role": "user", "content": [{"text": message["content"]}]}
-                )
-            else:
-                no_system_prompt.append(
-                    {"role": "assistant", "content": [{"text": message["content"]}]}
-                )
-        no_system_prompt.append({"role": "user", "content": [{"text": prompt}]})
+        if previous_messages:
+            for message in previous_messages:
+                if message["role"] == "user":
+                    no_system_prompt.append(
+                        {"role": "user", "content": [{"text": message["content"]}]}
+                    )
+                else:
+                    no_system_prompt.append(
+                        {"role": "assistant", "content": [{"text": message["content"]}]}
+                    )
+        if prompt:
+            no_system_prompt.append({"role": "user", "content": [{"text": prompt}]})
         no_system_prompt = self.merge_consecutive_messages(no_system_prompt)
         converse_api_params = {
             "modelId": self.model,
@@ -128,7 +129,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             raise Exception(f"A Bedrock client error occurred: {message}")
 
     def generate_sql_v2(
-        self, previous_messages, question: str, allow_llm_to_see_data=False, **kwargs
+        self, previous_messages, question, allow_llm_to_see_data=False, **kwargs
     ) -> str:
         """
         Example:
@@ -156,17 +157,18 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         Returns:
             str: The SQL query that answers the question.
         """
-        first_message = None
-        if len(previous_messages) > 0:
+        first_message = question
+        if previous_messages and len(previous_messages) > 0:
+            question = None
             first_message = previous_messages[0]["content"]
 
         if self.config is not None:
             initial_prompt = self.config.get("initial_prompt", None)
         else:
             initial_prompt = None
-        question_sql_list = self.get_similar_question_sql(question, **kwargs)
-        ddl_list = self.get_related_ddl(question, **kwargs)
-        doc_list = self.get_related_documentation(question, **kwargs)
+        question_sql_list = self.get_similar_question_sql(first_message, **kwargs)
+        ddl_list = self.get_related_ddl(first_message, **kwargs)
+        doc_list = self.get_related_documentation(first_message, **kwargs)
         first_prompt = self.get_sql_prompt(
             initial_prompt=initial_prompt,
             question=first_message,
@@ -176,7 +178,8 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             **kwargs,
         )
         # self.log(title="SQL Prompt", message=first_prompt)
-        previous_messages = previous_messages[1:]
+        if previous_messages:
+            previous_messages = previous_messages[1:]
         llm_response = self.submit_prompt_v2(
             first_prompt, previous_messages, question, **kwargs
         )
@@ -211,6 +214,16 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                     )
                     # self.log(title="LLM Response", message=llm_response)
                 except Exception as e:
+                    previous_messages.append({"role": "user", "content": question})
+                    previous_messages.append(
+                        {"role": "assistant", "content": intermediate_sql}
+                    )
+                    llm_response = self.submit_prompt_v2(
+                        prompt,
+                        previous_messages,
+                        f"Got the following error {e}, can you recheck syntax?",
+                        **kwargs,
+                    )
                     return f"Error running intermediate SQL: {e}"
 
         return self.extract_sql(llm_response)

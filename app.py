@@ -198,12 +198,7 @@ def reply_message_with_delay(delay, sink, text, ts, broadcast):
 
 
 def sql_reply(question, sink, ts, previous_messages=None):
-    if previous_messages:
-        sql = vn.generate_sql_v2(
-            previous_messages, question, allow_llm_to_see_data=True
-        )
-    else:
-        sql = vn.generate_sql(question, allow_llm_to_see_data=True)
+    sql = vn.generate_sql_v2(previous_messages, question, allow_llm_to_see_data=True)
 
     if not vn.is_sql_valid(sql):
         reply_message(sink, sql, ts, broadcast=False)
@@ -230,7 +225,12 @@ def sql_reply(question, sink, ts, previous_messages=None):
             df = vn.run_sql(sql)
         except Exception as e:
             print("ERROR running second sql", e)
-            reply_message(sink, f":cry: Sorry! I encountered an error while executing the query in Snowflake.```{e}```", ts, broadcast=False)
+            reply_message(
+                sink,
+                f":cry: Sorry! I encountered an error while executing the query in Snowflake.```{e}```",
+                ts,
+                broadcast=False,
+            )
             return
 
     slack_table = "```\n" + df.head(10).to_markdown(index=False) + "\n...```"
@@ -300,7 +300,11 @@ def handle_thread_replies(data):
         for message in messages[:-1]:
             if "text" not in message:
                 continue
-            if message["user"] == BOT_USER_ID and not is_first and message["text"].strip() != '':
+            if (
+                message["user"] == BOT_USER_ID
+                and not is_first
+                and message["text"].strip() != ""
+            ):
                 chat_messages.append({"role": "assistant", "content": message["text"]})
             else:
                 txt = message["text"]
