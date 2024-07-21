@@ -23,7 +23,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             config={
                 "n_results_sql": 10,
                 "n_results_documentation": 10,
-                "n_results_ddl": 40,
+                "n_results_ddl": 150,
             },
         )
         Bedrock_Converse.__init__(
@@ -91,6 +91,14 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                     )
         if prompt:
             no_system_prompt.append({"role": "user", "content": [{"text": prompt}]})
+        total_length = 0
+        for nmps in no_system_prompt:
+            if len(nmps["content"]) == 1:
+                cnt = nmps["content"][0]["text"]
+            else:
+                cnt = nmps["content"]
+            total_length += self.str_to_approx_token_count(cnt)
+        print("TOTAL_TOKENS_LENGTH", total_length)
         no_system_prompt = self.merge_consecutive_messages(no_system_prompt)
         converse_api_params = {
             "modelId": self.model,
@@ -215,10 +223,8 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                 except Exception as e:
                     if not previous_messages:
                         previous_messages = []
-                    previous_messages.append({"role": "user", "content": first_message})
-                    previous_messages.append(
-                        {"role": "assistant", "content": intermediate_sql}
-                    )
+                    previous_messages.append(self.user_message(first_message))
+                    previous_messages.append(self.assistant_message(first_message))
                     prompt = self.get_sql_prompt(
                         initial_prompt=initial_prompt,
                         question=first_message,
@@ -405,11 +411,8 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             "5. If the question has been asked and answered before, please repeat the answer exactly as it was given before. \n"
         )
         message_log = [self.system_message(initial_prompt)]
-        ddl_prompt = self.add_ddl_to_prompt("", ddl_list, max_tokens=self.max_tokens)
-        message_log.append(self.user_message(ddl_prompt))
-        message_log.append(
-            self.assistant_message("Acknowledged schema, now please send your query")
-        )
+        ddl_prompts = self.add_ddl_to_prompt_v2(ddl_list, max_tokens=1400)
+        message_log += ddl_prompts
 
         for example in question_sql_list:
             if example is None:
@@ -423,3 +426,33 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
 
         return message_log
 
+    def add_ddl_to_prompt_v2(self, ddl_list: list[str], max_tokens: int = 14000):
+        message_log_sequence = []
+        current_prompt = "\n===Tables \n"
+        current_token_length = 0
+        for ddl in ddl_list:
+            total_token_count = self.str_to_approx_token_count(
+                current_prompt
+            ) + self.str_to_approx_token_count(ddl)
+            if total_token_count < max_tokens:
+                current_prompt += f"{ddl}\n\n"
+                current_token_length += total_token_count
+            else:
+                message_log_sequence.append(self.user_message(current_prompt))
+                message_log_sequence.append(
+                    self.assistant_message(
+                        "Acknowledged schema, now please send your query or send more schemas"
+                    )
+                )
+                current_prompt = "\n===Tables \n"
+                current_prompt += f"{ddl}\n\n"
+                current_token_length = total_token_count
+        if current_prompt != "\n===Tables \n":
+            message_log_sequence.append(self.user_message(current_prompt))
+            message_log_sequence.append(
+                self.assistant_message(
+                    "Acknowledged schema, now please send your query or send more schemas"
+                )
+            )
+
+        return message_log_sequence
