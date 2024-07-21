@@ -247,9 +247,14 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             categorical_cols = df.select_dtypes(
                 include=["object", "category"]
             ).columns.tolist()
-
+            if len(numeric_cols) == 1 and len(categorical_cols) == 0:
+                return None
+            elif len(numeric_cols) == 0 and len(categorical_cols) == 1:
+                return None
+            elif len(numeric_cols) == 0 and len(categorical_cols) == 0:
+                return None
             # Decision-making for plot type
-            if len(numeric_cols) >= 2 and len(categorical_cols) == 0:
+            elif len(numeric_cols) >= 2 and len(categorical_cols) == 0:
                 # Use the first two numeric columns for a scatter plot
                 fig = px.scatter(df, x=numeric_cols[0], y=numeric_cols[1])
             elif len(numeric_cols) == 1 and len(categorical_cols) >= 1:
