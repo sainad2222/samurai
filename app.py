@@ -230,7 +230,12 @@ def sql_reply(question, sink, ts, previous_messages=None):
             if sql_retry_remaining == 0:
                 slack_sql = "```\n" + sql + "\n```"
                 reply_message(sink, slack_sql, ts, broadcast=False)
-                reply_message(sink,f":cry: Sorry! I encountered an error while executing the query in Snowflake.```{e}```",ts,broadcast=False)
+                reply_message(
+                    sink,
+                    f":cry: Sorry! I encountered an error while executing the query in Snowflake.```{e}```",
+                    ts,
+                    broadcast=False,
+                )
                 return
 
     slack_table = "```\n" + df.head(10).to_markdown(index=False) + "\n...```"
@@ -240,7 +245,7 @@ def sql_reply(question, sink, ts, previous_messages=None):
     # plotly_code = vn.generate_plotly_code_v2(
     #     previous_message=previous_messages, question=question, sql=sql, df=df
     # )
-    fig = vn.get_plotly_figure_v2( df=df)
+    fig = vn.get_plotly_figure_v2(df=df, plotly_code=None)
 
     if fig:
         img = fig.to_image(format="png", width=800, height=600, scale=2)
