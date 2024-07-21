@@ -59,11 +59,11 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         return merged_messages
 
     def submit_prompt_v2(
-        self, first_prompt, previous_messages, prompt, **kwargs
+        self, prompt_messages, **kwargs
     ) -> str:
         inference_config = {
             "temperature": self.temperature,
-            "maxTokens": self.max_tokens,
+            "maxTokens": 4096,
         }
         additional_model_fields = {
             "top_p": 1,  # setting top_p value for nucleus sampling
@@ -71,7 +71,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
 
         system_message = None
         no_system_prompt = []
-        for prompt_message in first_prompt:
+        for prompt_message in prompt_messages:
             role = prompt_message["role"]
             if role == "system":
                 system_message = prompt_message["content"]
@@ -79,18 +79,6 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                 no_system_prompt.append(
                     {"role": role, "content": [{"text": prompt_message["content"]}]}
                 )
-        if previous_messages:
-            for message in previous_messages:
-                if message["role"] == "user":
-                    no_system_prompt.append(
-                        {"role": "user", "content": [{"text": message["content"]}]}
-                    )
-                else:
-                    no_system_prompt.append(
-                        {"role": "assistant", "content": [{"text": message["content"]}]}
-                    )
-        if prompt:
-            no_system_prompt.append({"role": "user", "content": [{"text": prompt}]})
         no_system_prompt = self.merge_consecutive_messages(no_system_prompt)
         converse_api_params = {
             "modelId": self.model,
@@ -157,32 +145,28 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         Returns:
             str: The SQL query that answers the question.
         """
-        first_message = question
-        if previous_messages and len(previous_messages) > 0:
-            first_message = previous_messages[0]["content"]
-
-        if self.config is not None:
+        if self.config is not None and previous_messages:
             initial_prompt = self.config.get("initial_prompt", None)
         else:
-            initial_prompt = None
-        question_sql_list = self.get_similar_question_sql(first_message, **kwargs)
-        ddl_list = self.get_related_ddl(first_message, **kwargs)
-        doc_list = self.get_related_documentation(first_message, **kwargs)
-        first_prompt = self.get_sql_prompt(
-            initial_prompt=initial_prompt,
-            question=first_message,
-            question_sql_list=question_sql_list,
-            ddl_list=ddl_list,
-            doc_list=doc_list,
-            **kwargs,
-        )
-        # self.log(title="SQL Prompt", message=first_prompt)
-        if previous_messages:
-            previous_messages = previous_messages[1:]
-        llm_response = self.submit_prompt_v2(
-            first_prompt, previous_messages, question, **kwargs
-        )
-        # self.log(title="LLM Response", message=llm_response)
+            initial_prompt = ""
+        final_messages = []
+        for message in previous_messages+question:
+            if message["role"] == "user":
+                question_sql_list = self.get_similar_question_sql(message, **kwargs)
+                ddl_list = self.get_related_ddl(message, **kwargs)
+                doc_list = self.get_related_documentation(message, **kwargs)
+                prompt = self.get_sql_prompt(
+                    initial_prompt=initial_prompt,
+                    question=message,
+                    question_sql_list=question_sql_list,
+                    ddl_list=ddl_list,
+                    doc_list=doc_list,
+                    **kwargs,
+                )
+                final_messages.append(prompt)
+            else:
+                final_messages.append(message)
+        llm_response = self.submit_prompt_v2(final_messages, **kwargs)
 
         if "intermediate_sql" in llm_response:
             if not allow_llm_to_see_data:
@@ -195,9 +179,20 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                     self.log(title="Running Intermediate SQL", message=intermediate_sql)
                     df = self.run_sql(intermediate_sql)
 
+                    question_sql_list_int = self.get_similar_question_sql(question, **kwargs)
+                    ddl_list_int = self.get_related_ddl(question, **kwargs)
+                    doc_list_int = self.get_related_documentation(question, **kwargs)
+                    prompt_int = self.get_sql_prompt(
+                        initial_prompt=initial_prompt,
+                        question=question,
+                        question_sql_list=question_sql_list,
+                        ddl_list=ddl_list,
+                        doc_list=doc_list,
+                        **kwargs,
+                    )
                     prompt = self.get_sql_prompt(
                         initial_prompt=initial_prompt,
-                        question=first_message,
+                        question=final_messages[0],
                         question_sql_list=question_sql_list,
                         ddl_list=ddl_list,
                         doc_list=doc_list
@@ -402,7 +397,9 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             "4. Please use the most relevant table(s). \n"
             "5. If the question has been asked and answered before, please repeat the answer exactly as it was given before. \n"
         )
-        message_log = [self.system_message(initial_prompt)]
+        message_log = []
+        if initial_prompt:
+            message_log.append(self.system_message(initial_prompt)])
         ddl_prompt = self.add_ddl_to_prompt("", ddl_list, max_tokens=self.max_tokens)
         message_log.append(self.user_message(ddl_prompt))
         message_log.append(
