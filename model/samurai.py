@@ -21,7 +21,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         ChromaDB_VectorStore.__init__(
             self,
             config={
-                "n_results_sql": 20,
+                "n_results_sql": 10,
                 "n_results_documentation": 10,
                 "n_results_ddl": 40,
             },
@@ -238,7 +238,12 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         return self.extract_sql(llm_response)
 
     def generate_plotly_code_v2(
-            self, previous_message, question: str = None, sql: str = None, df_metadata: str = None, **kwargs
+        self,
+        previous_message,
+        question: str = None,
+        sql: str = None,
+        df_metadata: str = None,
+        **kwargs,
     ) -> str:
         if question is not None:
             system_msg = f"The following is a pandas DataFrame that contains the results of the query that answers the question the user asked: '{question}'"
@@ -253,7 +258,12 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         prompt = "Can you generate the Python plotly code to chart the results of the dataframe? Assume the data is in a pandas dataframe called 'df'.If we have only one row in our dataframe, don't create any charts. If one of the column_name is actor_id then don't generate chart. If we have only categorical columns in our dataframe, don't create any charts.If we have one categorical columns and its value present in it looks like date or timestamp and other as columns are numerical then create line charts where categorical column is x axis. If we have one categorical column and one numerical column then create piechart. If there is only one categorical or one numerical variable or one row, DO NOT CREATE charts - return an empty plotty code. If one categorical columns with date values and one numerical columns are present, create line charts. If two categorical and one numerical columns are present, create stacked bar charts. If we have one categorical columns and multiple numerical columns then create line charts or bar charts. Use colour #00B899 if plotting a single variable as line or bar. Use Indicator with automatic alignment for all charts. Use these colour also whenever needed - (#004E2D,#007A56,#00B899,#6BCDB6,#A8E0D3,#DCF3EE,#6D313F,#A73F4B,#D45967,#E895A1,#F2BDC6,#F8E5EB). Respond with only Python code. Do not answer with any explanations -- just the code."
 
         # plotly_code = self.submit_prompt(message_log, kwargs=kwargs)
-        plotly_code = self.submit_prompt_v2(first_prompt=[self.system_message(system_msg)], previous_messages=previous_message, prompt=prompt, kwargs=kwargs)
+        plotly_code = self.submit_prompt_v2(
+            first_prompt=[self.system_message(system_msg)],
+            previous_messages=previous_message,
+            prompt=prompt,
+            kwargs=kwargs,
+        )
 
         return self._sanitize_plotly_code(self._extract_python_code(plotly_code))
 
@@ -340,7 +350,7 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
 
     def get_sql_prompt(
         self,
-        initial_prompt : str,
+        initial_prompt: str,
         question: str,
         question_sql_list: list,
         ddl_list: list,
@@ -372,8 +382,10 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         """
 
         if initial_prompt is None:
-            initial_prompt = f"You are a {self.dialect} expert. " + \
-            "Please help to generate a SQL query to answer the question. Your response should ONLY be based on the given context and follow the response guidelines and format instructions. "
+            initial_prompt = (
+                f"You are a {self.dialect} expert. "
+                + "Please help to generate a SQL query to answer the question. Your response should ONLY be based on the given context and follow the response guidelines and format instructions. "
+            )
 
         if self.static_documentation != "":
             doc_list.append(self.static_documentation)
@@ -391,11 +403,11 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
             "5. If the question has been asked and answered before, please repeat the answer exactly as it was given before. \n"
         )
         message_log = [self.system_message(initial_prompt)]
-        ddl_prompt = self.add_ddl_to_prompt(
-            "", ddl_list, max_tokens=self.max_tokens
-        )
+        ddl_prompt = self.add_ddl_to_prompt("", ddl_list, max_tokens=self.max_tokens)
         message_log.append(self.user_message(ddl_prompt))
-        message_log.append(self.assistant_message("Acknowledged schema, now please send your query"))
+        message_log.append(
+            self.assistant_message("Acknowledged schema, now please send your query")
+        )
 
         for example in question_sql_list:
             if example is None:
@@ -408,3 +420,4 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         message_log.append(self.user_message(question))
 
         return message_log
+

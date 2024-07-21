@@ -19,6 +19,7 @@ session = boto3.Session()
 boto3_bedrock = boto3.client(service_name="bedrock-runtime")
 
 vn = Samurai(client=boto3_bedrock)
+vn.temperature = 0.1
 vn.max_tokens = 4096
 
 vn.connect_to_snowflake_v2()
@@ -237,7 +238,9 @@ def sql_reply(question, sink, ts, previous_messages=None):
 
     reply_message(sink, slack_table, ts, broadcast=False)
 
-    plotly_code = vn.generate_plotly_code_v2(previous_message=previous_messages, question=question, sql=sql, df=df)
+    plotly_code = vn.generate_plotly_code_v2(
+        previous_message=previous_messages, question=question, sql=sql, df=df
+    )
     fig = vn.get_plotly_figure_v2(plotly_code=plotly_code, df=df)
 
     img = fig.to_image(format="png", width=800, height=600, scale=2)
