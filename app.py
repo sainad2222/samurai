@@ -319,7 +319,7 @@ def handle_slash():
     # Post the command + text that was entered by the user.
     # post_message_resp = post_message(data['channel_id'], '{} {}'.format(data['command'], data['text']))
     post_message_resp = post_message(
-        data["channel_id"], 'I was asked "{}"'.format(data["text"])
+        data["channel_id"], '<@{}> asked "{}"'.format(data["user_id"], data["text"])
     )
 
     # Post the first reply.
