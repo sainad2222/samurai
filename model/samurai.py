@@ -159,7 +159,6 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
         """
         first_message = question
         if previous_messages and len(previous_messages) > 0:
-            question = None
             first_message = previous_messages[0]["content"]
 
         if self.config is not None:
@@ -214,9 +213,19 @@ class Samurai(Bedrock_Converse, ChromaDB_VectorStore, CustomSF):
                     )
                     # self.log(title="LLM Response", message=llm_response)
                 except Exception as e:
-                    previous_messages.append({"role": "user", "content": question})
+                    if not previous_messages:
+                        previous_messages = []
+                    previous_messages.append({"role": "user", "content": first_message})
                     previous_messages.append(
                         {"role": "assistant", "content": intermediate_sql}
+                    )
+                    prompt = self.get_sql_prompt(
+                        initial_prompt=initial_prompt,
+                        question=first_message,
+                        question_sql_list=question_sql_list,
+                        ddl_list=ddl_list,
+                        doc_list=doc_list,
+                        **kwargs,
                     )
                     llm_response = self.submit_prompt_v2(
                         prompt,
