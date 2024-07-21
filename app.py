@@ -205,12 +205,14 @@ def sql_reply(question, sink, ts, previous_messages=None):
     else:
         sql = vn.generate_sql(question, allow_llm_to_see_data=True)
 
-    slack_sql = "```\n" + sql + "\n```"
-
-    reply_message(sink, slack_sql, ts, broadcast=False)
+    if not vn.is_sql_valid(sql):
+        reply_message(sink, sql, ts, broadcast=False)
+        return
 
     try:
         df = vn.run_sql(sql)
+        slack_sql = "```\n" + sql + "\n```"
+        reply_message(sink, slack_sql, ts, broadcast=False)
     except Exception as e:
         if not previous_messages:
             previous_messages = []
@@ -222,7 +224,6 @@ def sql_reply(question, sink, ts, previous_messages=None):
             allow_llm_to_see_data=True,
         )
         slack_sql = "```\n" + sql + "\n```"
-
         reply_message(sink, slack_sql, ts, broadcast=False)
         df = vn.run_sql(sql)
 
