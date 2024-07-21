@@ -58,6 +58,16 @@ def generate_chart(df):
         else:
             fig = px.bar(df, x=cat_col, y=num_col, color_discrete_sequence=["#00B899"])
             fig.update_layout(title="Bar Chart")
+            for i, row in df.iterrows():
+                fig.add_annotation(
+                    x=row[categorical_cols[0]],
+                    y=row[numerical_cols[0]],
+                    text=f"{row[numerical_cols[0]]}",
+                    showarrow=True,
+                    arrowhead=2,
+                    ax=0,
+                    ay=-30,
+                )
             return fig
 
     elif len(categorical_cols) == 2 and len(numerical_cols) == 1:
@@ -71,6 +81,16 @@ def generate_chart(df):
         cat_col = categorical_cols[0]
         fig = px.bar(df, x=cat_col, y=numerical_cols, color_discrete_sequence=["#00B899"])
         fig.update_layout(title="Bar Chart")
+        for i, row in df.iterrows():
+                fig.add_annotation(
+                    x=row[categorical_cols[0]],
+                    y=row[numerical_cols[0]],
+                    text=f"{row[numerical_cols[0]]}",
+                    showarrow=True,
+                    arrowhead=2,
+                    ax=0,
+                    ay=-30,
+                )
         return fig
 
     return None
