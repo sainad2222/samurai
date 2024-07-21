@@ -243,9 +243,9 @@ def sql_reply(question, sink, ts, previous_messages=None):
     )
     fig = vn.get_plotly_figure_v2(plotly_code=plotly_code, df=df)
 
-    img = fig.to_image(format="png", width=800, height=600, scale=2)
-
-    upload_file_v2(sink, img, "plot.png", "Plot", question, ts)
+    if fig:
+        img = fig.to_image(format="png", width=800, height=600, scale=2)
+        upload_file_v2(sink, img, "plot.png", "Plot", question, ts)
 
 
 @app.route("/")
