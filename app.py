@@ -225,7 +225,11 @@ def sql_reply(question, sink, ts, previous_messages=None):
         )
         slack_sql = "```\n" + sql + "\n```"
         reply_message(sink, slack_sql, ts, broadcast=False)
-        df = vn.run_sql(sql)
+        try:
+            df = vn.run_sql(sql)
+        except Exception as e:
+            reply_message(sink, f":cry: Sorry! I encountered an error while executing the query in Snowflake.```{e}```", ts, broadcast=False)
+            return
 
     slack_table = "```\n" + df.head(10).to_markdown(index=False) + "\n...```"
 
