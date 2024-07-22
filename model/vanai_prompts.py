@@ -24,4 +24,5 @@ prompts = """===RESPONSE GUIDELINES
                     "13. If the date range is unspecified, you can check with the user. If it is still unclear, consider date range as the last 90 days for all purposes unless specifically mentioned otherwise.\n"
                     "14. Use approx_percentile function wherever the user requests to calculate percentile or calculate median of any metrics.\n"
                     "15. When using column first_success_add_fund_date, remember that it is only for the first add funds ever for that user. When going through the query, remember that there is a difference between first added funds and added funds in that particular month."
+                    "16. You are supposed to use only SQL queries meant for snowflake DB. You can’t use any other SQL format otherwise you might face errors."
 """
