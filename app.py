@@ -260,13 +260,14 @@ def index():
 @app.route("/event", methods=["POST"])
 def handle_events():
     data = request.get_json()
+    # Verify the event route.
+    if data["type"] == "url_verification":
+        return data["challenge"]
+
     event_id = data["event_id"]
     if event_id in events_map:
         return ""
     events_map[event_id] = True
-    # Verify the event route.
-    if data["type"] == "url_verification":
-        return data["challenge"]
 
     if data["type"] == "event_callback" and "event" in data:
         if data["event"]["user"] != BOT_USER_ID:
